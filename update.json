@@ -1,0 +1,9 @@
+{
+  "version": "1.0.0",
+  "channel": "stable",
+  "published_at": "2026-09-12T17:13:12Z",
+  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.0/班级留言板_v1.0.0.zip",
+  "sha256": "f0092cbd6f1de43a37fe88baf155bbf9e0b33aec5854d54374abdca083d94054",
+  "changelog": "首个正式版：教室端自动更新 + 紧急通知降级反馈 + 生产日志",
+  "self_url": "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
+}
