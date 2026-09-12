@@ -1,9 +1,9 @@
 {
   "version": "1.0.1",
   "channel": "stable",
-  "published_at": "2026-09-12T17:48:10Z",
+  "published_at": "2026-09-12T17:49:13Z",
   "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.1/board_v1.0.1.zip",
-  "sha256": "a59b0811b788e264d052f0ffdbb42d7dc0bf66c08274175695669f520adf2ee2",
-  "changelog": "v1.0.1 修复：自更新互斥锁挡死 + 整合同级留言板-PC 结构 + 图标",
+  "sha256": "c345f613950ed8a4a2f1a987cb9ca58edf73423093785b857ac311d436648730",
+  "changelog": "v1.0.1 修复：自更新互斥锁挡死 + 整合同级留言板-PC 结构 + 应用图标",
   "self_url": "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
 }
