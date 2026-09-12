@@ -51,7 +51,7 @@ CONFIG_PATH = os.path.join(ROOT_DIR, "config", "students.json")
 # 教室端是装在碰不到的教室电脑上的桌面 exe，无法像网页那样"重新上传即升级"。
 # 故做全自动更新：每次开机先拉 update.json（GitHub 仓库），比对版本号，有新版则
 # 下载 release zip、校验 sha256、自替换 exe、重启。config/*.json 不随更新覆盖，班级配置保留。
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 # --after-update：自更新重启时传入，跳过互斥锁检查（旧进程已释放锁，但内核对象残留
 # 会导致新进程 CreateMutexW 返回 ERROR_ALREADY_EXISTS 而 exit（1）= 更新后"卡死"）

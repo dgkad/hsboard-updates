@@ -1,9 +1,9 @@
 {
-  "version": "1.0.0",
+  "version": "1.0.1",
   "channel": "stable",
-  "published_at": "2026-09-12T17:31:42Z",
-  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.0/board_v1.0.0.zip",
-  "sha256": "330fac0ba90e2fa1b98c61c8c1174d5dddc578f6b38e69d1b47450aaae237d68",
-  "changelog": "修复：自更新后互斥锁挡死 + 启动流程重排 + 打包增强",
+  "published_at": "2026-09-12T17:40:29Z",
+  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.1/board_v1.0.1.zip",
+  "sha256": "eb5631b35876d716bae5060ba79e3b3fa047dc17014c75982f2798f56fa95fcd",
+  "changelog": "v1.0.1 修复：自更新互斥锁挡死 + 启动流程重排 + 打包增强",
   "self_url": "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
 }
