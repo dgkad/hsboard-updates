@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>班级留言板（家长/老师端 PoC）</title>
+<style>
+  html { touch-action: manipulation; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #ededed; display: flex; flex-direction: column;
+  }
+  .hidden { display: none !important; }
+
+  /* 登录卡片 */
+  #login {
+    margin: auto; width: 86%; max-width: 360px;
+    background: #fff; border-radius: 12px; padding: 28px 22px; text-align: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,.08);
+  }
+  #login h1 { font-size: 20px; margin-bottom: 12px; color: #111; }
+  .tip { font-size: 12px; color: #999; margin-top: 10px; line-height: 1.6; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 4px; }
+  .tab {
+    flex: 1; height: 38px; border: 1px solid #ddd; border-radius: 8px;
+    background: #f7f7f7; color: #666; font-size: 15px; cursor: pointer;
+  }
+  .tab.on { background: #07c160; border-color: #07c160; color: #fff; font-weight: 600; }
+  .sel {
+    width: 100%; height: 42px; margin-top: 12px; padding: 0 12px;
+    border: 1px solid #ddd; border-radius: 8px; font-size: 16px; outline: none; background: #fff;
+  }
+  .sel:focus { border-color: #07c160; }
+  #btnEnter {
+    width: 100%; height: 42px; margin-top: 14px; border: none; border-radius: 8px;
+    background: #07c160; color: #fff; font-size: 16px;
+  }
+  #btnEnter:active { opacity: .85; }
+  #btnGuide {
+    display: block; width: 100%; height: 40px; margin-top: 10px;
+    line-height: 38px; border: 1px solid #07c160; border-radius: 8px;
+    background: #f0fbf4; color: #07c160; font-size: 15px; font-weight: 600;
+    text-decoration: none;
+  }
+  #btnGuide:active { opacity: .85; }
+  #parentBox { position: relative; }
+  #acList {
+    position: absolute; left: 0; right: 0; top: 100%; margin-top: 4px; z-index: 30;
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.15); max-height: 220px; overflow-y: auto;
+    text-align: left;
+  }
+  #acList .ac {
+    padding: 12px 14px; font-size: 15px; color: #111; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  #acList .ac + .ac { border-top: 1px solid #f2f2f2; }
+  #acList .ac.on { background: #f0fbf4; }
+  #acList .ac b { color: #07c160; }
+  #acList .ac .py {
+    font-size: 11px; color: #c0c0c0; max-width: 45%; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; flex: none;
+  }
+  #acList .empty { padding: 14px; text-align: center; color: #999; font-size: 13px; }
+
+  /* 聊天界面 */
+  #chat { flex: 1; display: flex; flex-direction: column; }
+  header {
+    padding: 10px 14px; background: #f7f7f7; border-bottom: 1px solid #e0e0e0;
+    display: flex; align-items: center; gap: 8px; font-size: 14px; color: #333;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #ccc; }
+  .dot.on { background: #07c160; }
+  .dot.off { background: #e64340; }
+  #who { margin-left: auto; color: #888; font-size: 12px; }
+  #hdrGuide { margin-left: 10px; color: #07c160; font-size: 13px; text-decoration: none; font-weight: 600; }
+
+  #list { flex: 1; overflow-y: auto; padding: 14px 12px; }
+  .row { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+  .bubble {
+    max-width: 78%; background: #95ec69; border-radius: 10px 2px 10px 10px;
+    padding: 9px 12px; box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  }
+  .bubble.horn { background: #ffb02e; }
+  .bubble p { font-size: 15px; color: #111; word-break: break-word; line-height: 1.5; }
+  .meta { margin-top: 4px; text-align: right; font-size: 11px; color: #5b7a45; }
+  .bubble.horn .meta { color: #8a5a00; }
+  .meta .tm { margin-left: 8px; opacity: .8; }
+  .meta .st.read { color: #1a6e37; font-weight: 600; }
+
+  .inputbar {
+    display: flex; gap: 8px; padding: 10px; background: #f7f7f7;
+    border-top: 1px solid #e0e0e0;
+  }
+  .inputbar input {
+    flex: 1; height: 40px; padding: 0 12px; border: 1px solid #ddd;
+    border-radius: 8px; font-size: 15px; outline: none; background: #fff;
+  }
+  .inputbar button {
+    width: 72px; border: none; border-radius: 8px; background: #07c160;
+    color: #fff; font-size: 15px;
+  }
+  .inputbar button:active { opacity: .85; }
+  .inputbar button.horn { background: #ff8c00; }
+  .inputbar button:disabled { opacity: .5; cursor: not-allowed; }
+  #status { cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <h1>班级留言板</h1>
+  <div class="tabs">
+    <button class="tab on" id="tabParent">我是家长</button>
+    <button class="tab" id="tabTeacher">我是老师</button>
+  </div>
+  <select id="classSel" class="sel" style="text-align:center"></select>
+  <div id="parentBox">
+    <input id="ssearch" class="sel" style="text-align:left" placeholder="搜索孩子：姓名 / 拼音 / 首字母" autocomplete="off" spellcheck="false">
+    <div id="acList" class="hidden"></div>
+    <p class="tip" id="rosterTip">正在加载学生名单…</p>
+  </div>
+  <div id="teacherBox" class="hidden">
+    <input id="tname" class="sel" style="height:42px;margin-top:12px;padding:0 12px;border:1px solid #ddd;border-radius:8px;font-size:15px;outline:none;background:#fff;text-align:left" placeholder="输入您的身份，如：数学老师 / 班主任">
+    <select id="tmode" class="sel">
+      <option value="normal">普通模式（以该老师身份发送普通通知）</option>
+      <option value="horn">紧急通知（教室全屏醒目提示）</option>
+    </select>
+    <p class="tip">紧急通知需要教室电脑运行 ClassIsland + IslandMQ 插件</p>
+  </div>
+  <button id="btnEnter">进入留言板</button>
+  <a id="btnGuide" href="guide.html" target="_blank">📖 使用指南（家长 / 老师必看）</a>
+</div>
+
+<div id="chat" class="hidden">
+  <header>
+    <span class="dot off" id="dot"></span><span id="status">连接中…</span>
+    <span id="who"></span><a id="hdrGuide" href="guide.html" target="_blank">指南</a>
+  </header>
+  <div id="list"></div>
+  <div class="inputbar">
+    <input id="text" placeholder="给孩子留言…" maxlength="140">
+    <button id="btnSend">发送</button>
+  </div>
+</div>
+
+<script src="./mqtt.min.js"></script>
+<script>
+  var $ = function (id) { return document.getElementById(id); };
+  var URL_ = "wss://e3611bf9.ala.cn-shenzhen.emqxsl.cn:8084/mqtt";   // EMQX Cloud Serverless（TLS）
+  var MQTT_USER_ = "hs-board", MQTT_PASS_ = "Hs8kQ2wR-mZx4vTpL";     // 认证账号（与 config/broker.json 一致）
+  var HS_PRE = "hsdemo/c8/";                      // 班级段前缀（登录页选班后更新，enter() 再固化）
+  var MSG_PRE = HS_PRE + "msg/";                  // 家长/老师 -> 教室
+  var ACK_PRE = HS_PRE + "ack/";                  // 教室 -> 家长（已读回执，retained）
+  var HIST_PRE = HS_PRE + "hist/";                // 家长/老师发消息历史（retained，换设备不丢）
+  var client = null, sid = "", role = "parent", tname = "", tmode = "normal", classId = "c8";
+  var sending = false;   // 回车防抖
+
+  // 生成 msgId：优先 crypto.randomUUID（36 字符，仅用于消息体，不受 MQTT clientId 23 字符限制）
+  // fallback 到 p/t-Date.now()-hex（≤23 字符，兼容 MQTT3.x clientId 硬限）
+  function newMsgId() {
+    var prefix = (role === "teacher") ? "t" : "p";
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return prefix + "-" + crypto.randomUUID();
+    }
+    var hex = "";
+    try {
+      var ab = new Uint8Array(4);
+      crypto.getRandomValues(ab);
+      for (var i = 0; i < ab.length; i++) hex += ab[i].toString(16).padStart(2, "0");
+    } catch (e) {
+      hex = Math.random().toString(16).slice(2, 6);
+    }
+    return prefix + "-" + Date.now() + "-" + hex;
+  }
+
+  // 演示名单；正式使用时只改 config/students.json 即可
+  var ROSTER = [
+    { id: "01", name: "张三" }, { id: "02", name: "李四" }, { id: "03", name: "王五" },
+    { id: "04", name: "赵六" }, { id: "05", name: "孙七" }, { id: "06", name: "周八" },
+    { id: "07", name: "吴九" }, { id: "08", name: "郑十" }
+  ];
+  var CLASS_NAME = "高一(8)班";
+
+  // ----- 登录页身份切换 -----
+  $("tabParent").addEventListener("click", function () {
+    role = "parent";
+    $("tabParent").classList.add("on"); $("tabTeacher").classList.remove("on");
+    $("parentBox").classList.remove("hidden"); $("teacherBox").classList.add("hidden");
+  });
+  $("tabTeacher").addEventListener("click", function () {
+    role = "teacher";
+    $("tabTeacher").classList.add("on"); $("tabParent").classList.remove("on");
+    $("teacherBox").classList.remove("hidden"); $("parentBox").classList.add("hidden");
+  });
+
+  function sortRoster() {
+    // 按姓名拼音首字母排序（中文 collation），家长找名字更快
+    ROSTER.sort(function (a, b) {
+      try { return a.name.localeCompare(b.name, "zh-Hans-CN"); }
+      catch (e) { return a.name.localeCompare(b.name); }
+    });
+  }
+
+  var pickedId = "";                 // combobox 当前选中的学号
+  var acIdx = -1;                    // 键盘导航高亮索引
+  var acListItems = [];              // 当前浮层项对应的学生对象（键盘选中用，学号不落 DOM）
+
+  function matchStu(s, kw) {
+    // 姓名包含 / 全拼包含 / 首字母开头（老名单无 p/s 字段时自动只按姓名）
+    var k = kw.toLowerCase();
+    return s.name.indexOf(kw) >= 0 ||
+           (s.p && s.p.indexOf(k) >= 0) ||
+           (s.s && s.s.indexOf(k) === 0);
+  }
+
+  function hlName(name, kw) {
+    var i = kw ? name.indexOf(kw) : -1;
+    if (i < 0) return esc(name);
+    return esc(name.slice(0, i)) + "<b>" + esc(name.slice(i, i + kw.length)) + "</b>" +
+           esc(name.slice(i + kw.length));
+  }
+
+  function updateTip(kw, n) {
+    $("rosterTip").textContent = kw
+      ? ("匹配 " + n + " 人")
+      : ("名单：" + CLASS_NAME + " · 共 " + ROSTER.length + " 人 · 支持姓名 / 拼音 / 首字母");
+  }
+
+  function fillAc(q) {
+    sortRoster();
+    var kw = (q || "").trim();
+    var list = kw ? ROSTER.filter(function (s) { return matchStu(s, kw); }) : ROSTER;
+    var box = $("acList");
+    box.innerHTML = "";
+    acListItems = list;
+    acIdx = -1;
+    if (!list.length) {
+      var d = document.createElement("div");
+      d.className = "empty";
+      d.textContent = "未找到「" + kw + "」，试试姓氏或拼音首字母";
+      box.appendChild(d);
+    } else {
+      list.forEach(function (s) {
+        var d = document.createElement("div");
+        d.className = "ac" + (s.id === pickedId ? " on" : "");
+        d.innerHTML = "<span>" + hlName(s.name, kw) + "</span>" +
+                      (s.p ? '<span class="py">' + esc(s.p) + "</span>" : "");
+        d.addEventListener("click", function () { pickStu(s.id); });
+        box.appendChild(d);
+      });
+    }
+    updateTip(kw, list.length);
+    box.classList.remove("hidden");
+  }
+
+  function pickStu(id) {
+    pickedId = id;
+    var s = null;
+    for (var i = 0; i < ROSTER.length; i++) if (ROSTER[i].id === id) s = ROSTER[i];
+    $("ssearch").value = s ? s.name : "";
+    $("acList").classList.add("hidden");
+    $("rosterTip").textContent = "已选：" + (s ? s.name : "") + " · 点输入框可改选";
+  }
+
+  function closeAc() { $("acList").classList.add("hidden"); }
+
+  $("ssearch").addEventListener("input", function () { pickedId = ""; fillAc(this.value); });
+  $("ssearch").addEventListener("focus", function () {
+    // 空关键字不展开浮层，避免遮挡输入
+    if (!this.value.trim()) { closeAc(); return; }
+    fillAc(this.value);
+  });
+  $("ssearch").addEventListener("keydown", function (e) {
+    var box = $("acList");
+    if (box.classList.contains("hidden")) return;
+    var items = Array.prototype.slice.call(box.querySelectorAll(".ac"));
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!items.length) return;
+      acIdx = (acIdx + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+      items.forEach(function (el, i) { el.classList.toggle("on", i === acIdx); });
+      items[acIdx].scrollIntoView({ block: "nearest" });
+    } else if (e.key === "Enter") {
+      // 稳妥起见：唯一匹配或已用方向键高亮时才回车选中，防止盲选错人
+      if (items.length === 1) pickStu(acListItems[0].id);
+      else if (acIdx >= 0 && items[acIdx]) pickStu(acListItems[acIdx].id);
+    } else if (e.key === "Escape") {
+      closeAc();
+    }
+  });
+  document.addEventListener("click", function (e) {
+    if (!$("parentBox").contains(e.target)) closeAc();
+  });
+
+
+  // ----- 多班级：读班级清单 -> 选班 -> 读该班名单（读不到就用内置演示名单）-----
+  function fillClasses(list) {
+    var sel = $("classSel");
+    sel.innerHTML = "";
+    list.forEach(function (c) {
+      var o = document.createElement("option");
+      o.value = c.id; o.textContent = c.name;
+      sel.appendChild(o);
+    });
+    var saved = localStorage.getItem("hs_class");
+    if (saved && list.some(function (c) { return c.id === saved; })) sel.value = saved;
+  }
+  function applyPrefix(cid) {
+    classId = cid;
+    HS_PRE = "hsdemo/" + cid + "/";
+    MSG_PRE = HS_PRE + "msg/"; ACK_PRE = HS_PRE + "ack/"; HIST_PRE = HS_PRE + "hist/";
+  }
+  function loadClassRoster(cid) {
+    applyPrefix(cid);
+    pickedId = ""; acIdx = -1; $("ssearch").value = "";   // 防跨班残留
+    fetch("../config/students/" + cid + ".json")
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (cfg) {
+        if (cfg && cfg.students && cfg.students.length) {
+          ROSTER = cfg.students;
+          CLASS_NAME = cfg.class || CLASS_NAME;
+        }
+        sortRoster();
+        updateTip("", ROSTER.length);
+      })
+      .catch(function () { updateTip("", ROSTER.length); });
+  }
+  fetch("../config/classes.json")
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+    .then(function (cfg) {
+      var list = (cfg && cfg.classes && cfg.classes.length) ? cfg.classes
+               : [{ id: "c8", name: "演示班" }];
+      fillClasses(list);
+      loadClassRoster($("classSel").value);
+    })
+    .catch(function () {
+      fillClasses([{ id: "c8", name: "演示班" }]);
+      loadClassRoster("c8");
+    });
+  $("classSel").addEventListener("change", function () {
+    localStorage.setItem("hs_class", $("classSel").value);
+    // 切班级时断开已有连接并置 null，避免 ACK/HIST 前缀旧订阅残留
+    if (client && client.connected) {
+      try { client.end(true); } catch (e) {}
+      client = null;
+    }
+    loadClassRoster($("classSel").value);
+  });
+
+  function setStatus(txt, ok) {
+    $("status").textContent = txt;
+    $("dot").className = "dot " + (ok ? "on" : "off");
+  }
+
+  function enter() {
+    applyPrefix($("classSel").value || classId);    // 固化本连接的班级段
+    if (role === "parent") {
+      sid = pickedId;
+      if (!sid) { alert("请先在搜索框中选择孩子"); return; }
+      $("who").textContent = sidName(sid) + "家长";
+    } else {
+      tname = $("tname").value.trim().replace(/[+#\r\n]/g, "").slice(0, 24);   // 通配符会破坏 MQTT topic
+    if (!tname) { alert("请输入您的身份，如：数学老师"); return; }
+    $("tname").value = tname;
+      tmode = $("tmode").value;
+      sid = (tmode === "horn") ? "horn" : "t-" + tname;
+      $("who").textContent = tname + "·" + (tmode === "horn" ? "紧急通知" : "普通");
+    }
+    $("login").classList.add("hidden");
+    $("chat").classList.remove("hidden");
+
+    // 回放本地历史：重开浏览器/换天后仍能看到之前发的留言和已读状态
+    renderHist();                                   // 统一走渲染（最新在顶部、已读时间）
+
+    var input = $("text"), btn = $("btnSend");
+    if (role === "teacher") {
+      input.placeholder = tmode === "horn" ? "输入要全班看到的紧急通知…" : "以" + tname + "身份发送普通通知…";
+      btn.textContent = tmode === "horn" ? "紧急通知" : "发送";
+      btn.classList.toggle("horn", tmode === "horn");
+    } else {
+      input.placeholder = "给孩子留言…";
+      btn.textContent = "发送";
+      btn.classList.remove("horn");
+    }
+    setStatus("连接中…", false);
+
+    // 断开已有连接并置 null，避免旧订阅残留
+    if (client && client.connected) {
+      try { client.end(true); } catch (e) {}
+      client = null;
+    }
+
+    client = mqtt.connect(URL_, {
+    clientId: (role === "parent" ? "p-" + sid.slice(-6) : "t-x")
+              + "-" + Math.random().toString(16).slice(2, 6),   // MQTT3.x ClientID ≤23 字符硬限
+    username: MQTT_USER_,
+    password: MQTT_PASS_,
+    keepalive: 30,
+    reconnectPeriod: 3000,
+    connectTimeout: 8000,
+    clean: true
+  });
+
+    client.on("connect", function () {
+      setStatus("已连接", true);
+      client.subscribe(ACK_PRE + chanSid(), { qos: 1 });   // 已读回执（老师普通+紧急都从同一主题回已读）
+      client.subscribe(HIST_PRE + chanSid(), { qos: 1 });  // 服务端历史（老师普通+紧急共用，换设备可恢复）
+      client.subscribe(ACK_PRE + "horn-degraded", { qos: 1 });  // 紧急通知降级回执（非 retained，实时推送）
+    });
+    client.on("reconnect", function () { setStatus("重连中…", false); });
+    client.on("close", function () { if (!client.connected) setStatus("已断开", false); });
+    client.on("message", function (topic, payload) {
+      if (topic.indexOf(HIST_PRE) === 0) {          // 服务端历史：合并本地与服务器，双端一致
+        try {
+          var arr = JSON.parse(payload.toString());
+          if (Array.isArray(arr)) mergeHist(arr);
+        } catch (e) { /* 忽略非法 */ }
+        return;
+      }
+      // 紧急通知降级回执：教室端 ClassIsland 不可用时发布，老师端将状态从"已发出"更新为"降级为卡片"
+      if (topic === ACK_PRE + "horn-degraded") {
+        try {
+          var dg = JSON.parse(payload.toString());
+          var dgId = dg.msgId;
+          if (dgId) {
+            var el = document.querySelector('.row[data-msg-id="' + dgId + '"]');
+            if (el) {
+              var st = el.querySelector(".st");
+              if (st && st.textContent.indexOf("紧急通知") >= 0) {
+                st.textContent = "紧急通知已降级为卡片提示";
+                st.classList.add("read");
+              }
+            }
+          }
+        } catch (e) {}
+        return;
+      }
+      try {
+        var ack = JSON.parse(payload.toString());
+        var ids = ack.msgIds || (ack.msgId ? [ack.msgId] : []);   // 累计已读列表（兼容旧版单条）
+        var readAt = ack.readAt || null;            // 孩子点击查看的时间（教室端回执携带）
+        for (var i = 0; i < ids.length; i++) markRead(ids[i], readAt);
+        updateHistRead(ids, readAt);                // 已读状态+时间写进本地历史（并发布到服务器）
+      } catch (e) { /* 忽略非法消息 */ }
+    });
+  }
+
+  function sidName(id) {
+    for (var i = 0; i < ROSTER.length; i++) {
+      if (ROSTER[i].id === id) return ROSTER[i].name;
+    }
+    return id;
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  // ---------- 本地历史（localStorage，按 身份+学号 分开存）----------
+  function chanSid() { return role === "teacher" ? "t-" + tname : sid; }  // 老师统一通道：普通+紧急共用历史与回执
+  function histKey() { return "hs_hist_" + classId + "_" + role + "_" + chanSid(); }  // 历史按班级隔离
+  function loadHist() {
+    try { return JSON.parse(localStorage.getItem(histKey()) || "[]"); } catch (e) { return []; }
+  }
+  function persistHist(h) {
+    try { localStorage.setItem(histKey(), JSON.stringify(h)); } catch (e) {}
+  }
+  function saveHist(entry) {
+    var h = loadHist();
+    h.unshift(entry);                               // 最新在前（列表顶部）
+    if (h.length > 200) h = h.slice(0, 200);        // 本地最多留 200 条
+    persistHist(h);
+  }
+  function updateHistRead(ids, readAt) {
+    var h = loadHist(), changed = false;
+    for (var i = 0; i < h.length; i++) {
+      if (!h[i].read && ids.indexOf(h[i].msgId) >= 0) {
+        h[i].read = true;
+        if (readAt) h[i].readAt = readAt;           // 孩子点击查看的时间
+        changed = true;
+      }
+    }
+    if (changed) { persistHist(h); publishHist(); }
+  }
+
+  // ---------- 服务端历史（retained）：换浏览器/换设备也能恢复 ----------
+  // 上传切片 = 当天消息 + 未读历史（未读最多保留 7 天）。
+  // 家长本地 localStorage 永不清空；服务器只保留"教室端还需要看到"的部分：
+  // 已读过且非当天的不再上传（防服务器存储膨胀）；未读的（教室可能关机没收到）
+  // 保留 7 天，保证隔天消息不丢；更旧的不再上传——教室端每日清空，旧未读
+  // 已无展示意义，无限续命只会让早期测试消息永久残留（2026-09 生产实测教训）。
+  function syncSlice() {
+    var day0 = new Date(); day0.setHours(0, 0, 0, 0);
+    var day0ms = day0.getTime();
+    var keepMs = Date.now() - 7 * 86400000;   // 未读历史保留 7 天
+    return loadHist().filter(function (m) {
+      return (m.ts || 0) >= day0ms || (!m.read && (m.ts || 0) >= keepMs);
+    });
+  }
+  function publishHist() {
+    if (!client || !client.connected) return;
+    try {
+      client.publish(HIST_PRE + chanSid(), JSON.stringify(syncSlice()),
+                     { qos: 1, retain: true });    // broker 保存最后一份快照
+    } catch (e) {}
+  }
+  function mergeHist(server) {
+    var map = {};
+    var local = loadHist();
+    for (var i = 0; i < local.length; i++) map[local[i].msgId] = local[i];
+    for (var j = 0; j < server.length; j++) {       // 已读状态优先（任一端读过即算读）
+      var sv = server[j];
+      if (!map[sv.msgId]) { map[sv.msgId] = sv; }
+      else if (sv.read && !map[sv.msgId].read) {
+        map[sv.msgId].read = true;
+        if (sv.readAt && !map[sv.msgId].readAt) map[sv.msgId].readAt = sv.readAt;
+      }
+    }
+    var merged = [];
+    for (var k in map) merged.push(map[k]);
+    merged.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });   // 最新在前
+    if (merged.length > 200) merged = merged.slice(0, 200);
+    persistHist(merged);
+    renderHist();
+  }
+  function renderHist() {                           // 清空重画（历史恢复/合并时用）
+    var list = $("list");
+    list.innerHTML = "";
+    var h = loadHist();
+    h.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });         // 兼容旧版升序存量
+    for (var i = 0; i < h.length; i++) {
+      var st = h[i].read ? readStatus(h[i].readAt) : (h[i].horn ? "全屏通知已发出" : "已发送");
+      addBubble(h[i], h[i].horn, st, true);         // 已是降序，顺序 append → 最新在最上
+    }
+    $("chat").scrollTop = 0;                        // 最新消息在顶部
+  }
+
+  function addBubble(msg, horn, statusText, append) {
+    var div = document.createElement("div");
+    div.className = "row";
+    div.setAttribute("data-msg-id", msg.msgId);
+    var time = new Date(msg.ts).toTimeString().slice(0, 5);
+    div.innerHTML =
+      '<div class="bubble' + (horn ? " horn" : "") + '"><p>' + esc(msg.text) + '</p>' +
+      '<div class="meta"><span class="st">' + (statusText || (horn ? "全屏通知已发出" : "发送中…")) + '</span>' +
+      '<span class="tm">' + time + "</span></div></div>";
+    var list = $("list");
+    if (append) list.appendChild(div);              // renderHist：数组本身已降序
+    else list.insertBefore(div, list.firstChild);   // 发送新消息：插到顶部
+    return div;
+  }
+
+  function fmtReadAt(s) {                           // 已读时间："X日 HH:MM"（与教室端格式一致）
+    var d = new Date(s);
+    if (isNaN(d.getTime())) return "";
+    var p = function (n) { return (n < 10 ? "0" : "") + n; };
+    return d.getDate() + "日 " + p(d.getHours()) + ":" + p(d.getMinutes());
+  }
+
+  function readStatus(readAt) {                     // 有已读时间则展示"已读 X日 HH:MM"，旧历史仅"已读"
+    return readAt ? "已读 " + fmtReadAt(readAt) : "已读";
+  }
+
+  function markRead(msgId, readAt) {
+    var el = document.querySelector('.row[data-msg-id="' + msgId + '"]');
+    if (el) {
+      var st = el.querySelector(".st");
+      st.textContent = readStatus(readAt);
+      st.classList.add("read");
+    }
+  }
+
+  function send() {
+    if (sending) return;
+    var input = $("text");
+    var text = input.value.trim();
+    if (!text) return;
+    if (!client || !client.connected) { alert("尚未连接服务器，请稍候"); return; }
+    sending = true;
+    var btn = $("btnSend");
+    btn.disabled = true;
+    var horn = (role === "teacher" && tmode === "horn");
+    var msg = {
+      msgId: newMsgId(),
+      sid: sid, text: text, ts: Date.now(),
+      type: horn ? "horn" : "normal"
+    };
+    if (role === "teacher") {
+      msg.role = "teacher";
+      msg.teacher = tname;
+      if (horn) msg.horn = true;
+    }
+    input.value = "";
+    var item = addBubble(msg, horn);
+    saveHist({ msgId: msg.msgId, text: text, ts: msg.ts, horn: horn, read: false });
+    publishHist();                                  // 历史同步到服务器（retained）——换设备不丢
+    client.publish(MSG_PRE + sid, JSON.stringify(msg), { qos: 1 }, function (err) {
+      btn.disabled = false;
+      sending = false;
+      if (err) { item.querySelector(".st").textContent = "发送失败"; return; }
+      var st = item.querySelector(".st");
+      if (st.textContent === "发送中…") {
+        st.textContent = horn
+          ? "紧急通知已发出（教室端未全屏则降级为卡片）"
+          : "已发送";
+        if (horn) sendHornAck(msg.msgId);
+      }
+    });
+  }
+
+  // 紧急通知回执占位：教室端确认全屏显示后发布 ACK，家长端 UI 可据此更新状态
+  // 当前教室端尚未实现回执，此函数为后续接入预留，不阻塞发送流程
+  function sendHornAck(msgId) {
+    // 教室端 ACK 主题：ACK_PRE + chanSid()，payload: { msgId, readAt, horn: true }
+    // 接收逻辑已在 client.on("message") 的 ACK 分支处理（markRead + updateHistRead）
+  }
+
+  // ---------- 每日零点清空：本地历史 + 服务端 hist retained（与教室端双保险） ----------
+  // 跨天后清 localStorage 全部 hs_hist_ 键，并把当前通道的服务端历史清成空快照（retained 删除），
+  // 然后 reload 让界面归零。教室电脑关机时也由本端负责清 retained（家长手机/PWA 常在线）。
+  var _today = new Date().toDateString();
+  setInterval(function () {
+    var t = new Date().toDateString();
+    if (t === _today) return;
+    _today = t;
+    try {
+      var del = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf("hs_hist_") === 0) del.push(k);
+      }
+      for (var j = 0; j < del.length; j++) localStorage.removeItem(del[j]);
+    } catch (e) {}
+    try {
+      if (client && client.connected && (sid || tname)) {
+        client.publish(HIST_PRE + chanSid(), "[]", { qos: 1, retain: true });
+      }
+    } catch (e) {}
+    location.reload();
+  }, 30000);
+
+  // ---------- iOS/Android 切后台重连：visibilitychange 触发 client.reconnect ----------
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && client && !client.connected) {
+      try { client.reconnect(); } catch (e) {}
+      setStatus("重连中…", false);
+    }
+  });
+
+  // ---------- status 区点击重试 ----------
+  $("status").addEventListener("click", function () {
+    if (client && !client.connected) {
+      try { client.reconnect(); } catch (e) {}
+      setStatus("重连中…", false);
+    }
+  });
+
+  $("btnEnter").addEventListener("click", enter);
+  $("btnSend").addEventListener("click", send);
+  $("text").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); send(); }
+  });
+</script>
+</body>
+</html>

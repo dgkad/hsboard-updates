@@ -1,0 +1,118 @@
+# 教室端自动更新发布流水线
+# 用法：打 tag（如 v1.0.1）并 push，本 workflow 自动：
+#   1) 拉代码 -> 装 PyInstaller -> 打 班级留言板.exe
+#   2) 打成 班级留言板_v{tag}.zip
+#   3) 算 sha256
+#   4) 生成 update.json（version/release_zip/sha256/changelog/published_at）
+#   5) 发 GitHub Release（tag 同版本）并上传 zip
+#   6) 把 update.json 推回 main 分支（客户端开机拉的就是它）
+# 之后教室端 exe 开机拉 main 上的 update.json -> 比版本 -> 下载新 zip -> 替换 -> 重启。
+#
+# 说明：
+#   - PyInstaller 在 Windows runner 上打包。
+#   - 需要仓库有 GITHUB_TOKEN 权限（写 release/内容/推送）。
+name: board-release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  # 也可手动触发：workflow_dispatch + inputs.version
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '语义化版本号，如 1.0.2'
+        required: true
+      changelog:
+        description: '本次更新说明'
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 装依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install paho-mqtt pyzmq PyInstaller
+
+      - name: 定版本号
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ver=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            v="${GITHUB_REF#refs/tags/}"
+            v="${v#v}"
+            echo "ver=$v" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: PyInstaller 打包
+        run: |
+          pyinstaller 班级留言板.spec
+          echo "dist/班级留言板" ; ls -1 dist/班级留言板
+
+      - name: 打 zip + 生成 update.json
+        shell: bash
+        run: |
+          cd dist
+          name="班级留言板"
+          ver="${{ steps.ver.outputs.ver }}"
+          # 把目录压成 班级留言板_v{ver}.zip
+          7z a -tzip "${name}_v${ver}.zip" "${name}" 2>/dev/null || powershell -NoProfile -Command "Compress-Archive -Path '$name' -DestinationPath \"${name}_v${ver}.zip\""
+          # 算 sha256
+          sha=$(python -c "import hashlib;print(hashlib.sha256(open('${name}_v${ver}.zip','rb').read()).hexdigest())")
+          ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          dl="https://github.com/${{ github.repository }}/releases/download/v${ver}/${name}_v${ver}.zip"
+          raw="https://raw.githubusercontent.com/${{ github.repository }}/main/update.json"
+          cat > update.json <<EOF
+          {
+            "version": "${ver}",
+            "channel": "stable",
+            "published_at": "${ts}",
+            "release_zip": "${dl}",
+            "sha256": "${sha}",
+            "changelog": "${{ inputs.changelog || '自动发布' }}",
+            "self_url": "${raw}"
+          }
+          EOF
+          echo "sha256: $sha"
+          cat update.json
+
+      - name: 发 Release（上传 zip）
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.ver }}
+          name: 教室端 v${{ steps.ver.outputs.ver }}
+          body: ${{ inputs.changelog || '自动发布教室端更新' }}
+          files: |
+            dist/班级留言板_v${{ steps.ver.outputs.ver }}.zip
+
+      - name: 把 update.json 推回 main
+        run: |
+          git config user.name "board-bot"
+          git config user.email "board-bot@users.noreply.github.com"
+          # 拉 main 最新，放入 update.json，提交推送
+          BRANCH="main"
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            BRANCH="main"
+          else
+            git remote set-url origin "${{ secrets.GITHUB_TOKEN }}" "https://x-access-token@github.com/${{ github.repository }}.git"
+          fi
+          cp dist/update.json .
+          git add update.json
+          git commit -m "chore: 更新 update.json 至 v${{ steps.ver.outputs.ver }}" || echo "无改动，跳过提交"
+          git push origin HEAD:"${BRANCH}" || echo "推送 update.json 到 main 失败，请手动检查"

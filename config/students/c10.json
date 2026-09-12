@@ -1,0 +1,323 @@
+{
+  "class": "高一(10)班",
+  "students": [
+    {
+      "id": "01",
+      "name": "陈键垲",
+      "p": "chenjiankai",
+      "s": "cjk"
+    },
+    {
+      "id": "02",
+      "name": "陈靖曦",
+      "p": "chenjingxi",
+      "s": "cjx"
+    },
+    {
+      "id": "03",
+      "name": "陈启睿",
+      "p": "chenqirui",
+      "s": "cqr"
+    },
+    {
+      "id": "04",
+      "name": "陈星彤",
+      "p": "chenxingtong",
+      "s": "cxt"
+    },
+    {
+      "id": "05",
+      "name": "陈雅琪",
+      "p": "chenyaqi",
+      "s": "cyq"
+    },
+    {
+      "id": "06",
+      "name": "邓泽菘",
+      "p": "dengzesong",
+      "s": "dzs"
+    },
+    {
+      "id": "07",
+      "name": "冯蕴淇",
+      "p": "fengyunqi",
+      "s": "fyq"
+    },
+    {
+      "id": "08",
+      "name": "傅楚瑜",
+      "p": "fuchuyu",
+      "s": "fcy"
+    },
+    {
+      "id": "09",
+      "name": "葛珈辰",
+      "p": "gejiachen",
+      "s": "gjc"
+    },
+    {
+      "id": "10",
+      "name": "郝文涛",
+      "p": "haowentao",
+      "s": "hwt"
+    },
+    {
+      "id": "11",
+      "name": "何宇涵",
+      "p": "heyuhan",
+      "s": "hyh"
+    },
+    {
+      "id": "12",
+      "name": "洪城学",
+      "p": "hongchengxue",
+      "s": "hcx"
+    },
+    {
+      "id": "13",
+      "name": "黄浩宇",
+      "p": "huanghaoyu",
+      "s": "hhy"
+    },
+    {
+      "id": "14",
+      "name": "黄昕研",
+      "p": "huangxinyan",
+      "s": "hxy"
+    },
+    {
+      "id": "15",
+      "name": "雷超群",
+      "p": "leichaoqun",
+      "s": "lcq"
+    },
+    {
+      "id": "16",
+      "name": "李杜涛",
+      "p": "lidutao",
+      "s": "ldt"
+    },
+    {
+      "id": "17",
+      "name": "李慧祯",
+      "p": "lihuizhen",
+      "s": "lhz"
+    },
+    {
+      "id": "18",
+      "name": "李岚",
+      "p": "lilan",
+      "s": "ll"
+    },
+    {
+      "id": "19",
+      "name": "李民诺",
+      "p": "liminnuo",
+      "s": "lmn"
+    },
+    {
+      "id": "20",
+      "name": "李思成",
+      "p": "lisicheng",
+      "s": "lsc"
+    },
+    {
+      "id": "21",
+      "name": "梁文洁",
+      "p": "liangwenjie",
+      "s": "lwj"
+    },
+    {
+      "id": "22",
+      "name": "凌广峻",
+      "p": "lingguangjun",
+      "s": "lgj"
+    },
+    {
+      "id": "23",
+      "name": "刘晓雯",
+      "p": "liuxiaowen",
+      "s": "lxw"
+    },
+    {
+      "id": "24",
+      "name": "卢涵润",
+      "p": "luhanrun",
+      "s": "lhr"
+    },
+    {
+      "id": "25",
+      "name": "鲁思含",
+      "p": "lusihan",
+      "s": "lsh"
+    },
+    {
+      "id": "26",
+      "name": "罗岚馨",
+      "p": "luolanxin",
+      "s": "llx"
+    },
+    {
+      "id": "27",
+      "name": "吕文萱",
+      "p": "lvwenxuan",
+      "s": "lwx"
+    },
+    {
+      "id": "28",
+      "name": "吕彦澄",
+      "p": "lvyancheng",
+      "s": "lyc"
+    },
+    {
+      "id": "29",
+      "name": "马博睿",
+      "p": "maborui",
+      "s": "mbr"
+    },
+    {
+      "id": "30",
+      "name": "莫梓曦",
+      "p": "mozixi",
+      "s": "mzx"
+    },
+    {
+      "id": "31",
+      "name": "欧晗玉",
+      "p": "ouhanyu",
+      "s": "ohy"
+    },
+    {
+      "id": "32",
+      "name": "欧阳婷",
+      "p": "ouyangting",
+      "s": "oyt"
+    },
+    {
+      "id": "33",
+      "name": "秦明锐",
+      "p": "qinmingrui",
+      "s": "qmr"
+    },
+    {
+      "id": "34",
+      "name": "饶兴昭汉",
+      "p": "raoxingzhaohan",
+      "s": "rxzh"
+    },
+    {
+      "id": "35",
+      "name": "谭锦程",
+      "p": "tanjincheng",
+      "s": "tjc"
+    },
+    {
+      "id": "36",
+      "name": "汤晨皓",
+      "p": "tangchenhao",
+      "s": "tch"
+    },
+    {
+      "id": "37",
+      "name": "王博睿",
+      "p": "wangborui",
+      "s": "wbr"
+    },
+    {
+      "id": "38",
+      "name": "王仕杰",
+      "p": "wangshijie",
+      "s": "wsj"
+    },
+    {
+      "id": "39",
+      "name": "王奕",
+      "p": "wangyi",
+      "s": "wy"
+    },
+    {
+      "id": "40",
+      "name": "吴思彤",
+      "p": "wusitong",
+      "s": "wst"
+    },
+    {
+      "id": "41",
+      "name": "吴禹辰",
+      "p": "wuyuchen",
+      "s": "wyc"
+    },
+    {
+      "id": "42",
+      "name": "夏宁睿",
+      "p": "xianingrui",
+      "s": "xnr"
+    },
+    {
+      "id": "43",
+      "name": "杨钰洲",
+      "p": "yangyuzhou",
+      "s": "yyz"
+    },
+    {
+      "id": "44",
+      "name": "杨智尧",
+      "p": "yangzhiyao",
+      "s": "yzy"
+    },
+    {
+      "id": "45",
+      "name": "杨子承",
+      "p": "yangzicheng",
+      "s": "yzc"
+    },
+    {
+      "id": "46",
+      "name": "余欣怡",
+      "p": "yuxinyi",
+      "s": "yxy"
+    },
+    {
+      "id": "47",
+      "name": "岳菲洋",
+      "p": "yuefeiyang",
+      "s": "yfy"
+    },
+    {
+      "id": "48",
+      "name": "张宝馨",
+      "p": "zhangbaoxin",
+      "s": "zbx"
+    },
+    {
+      "id": "49",
+      "name": "张悦颖",
+      "p": "zhangyueying",
+      "s": "zyy"
+    },
+    {
+      "id": "50",
+      "name": "张子翀",
+      "p": "zhangzichong",
+      "s": "zzc"
+    },
+    {
+      "id": "51",
+      "name": "章倍惠",
+      "p": "zhangbeihui",
+      "s": "zbh"
+    },
+    {
+      "id": "52",
+      "name": "郑舒语",
+      "p": "zhengshuyu",
+      "s": "zsy"
+    },
+    {
+      "id": "53",
+      "name": "庄园",
+      "p": "zhuangyuan",
+      "s": "zy"
+    }
+  ]
+}
