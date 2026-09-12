@@ -65,13 +65,16 @@ jobs:
           pyinstaller 班级留言板.spec
           echo "dist/班级留言板" ; ls -1 dist/班级留言板
 
-      - name: 打 zip + 生成 update.json
+      - name: 复制 config 并打 zip + 生成 update.json
         shell: bash
         run: |
           cd dist
           dirname="班级留言板"
           zipname="board_v${{ steps.ver.outputs.ver }}"
           ver="${{ steps.ver.outputs.ver }}"
+          # 把 config/ 复制到 exe 目录（frozen 启动时需要）
+          cp -r ../config "${dirname}/config"
+          echo "config/ 已复制（$(ls -1 ${dirname}/config | wc -l) 个文件）"
           # 把目录压成 board_v{ver}.zip（GitHub API 不接受中文文件名）
           7z a -tzip "${zipname}.zip" "${dirname}" 2>/dev/null || powershell -NoProfile -Command "Compress-Archive -Path '$dirname' -DestinationPath \"${zipname}.zip\""
           # 算 sha256

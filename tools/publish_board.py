@@ -64,7 +64,27 @@ def main():
         sys.exit(1)
     print(f"[打包] 主 exe: {exe}")
 
-    # 1) 打 zip（整个目录，config 不在包里；包内只含 exe + 依赖）
+    # 0) 把 config/ 复制进 dist 目录（frozen exe 启动时需要它）
+    src_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config")
+    dst_config = os.path.join(dist_dir, "config")
+    if os.path.isdir(src_config):
+        if os.path.isdir(dst_config):
+            shutil.rmtree(dst_config, ignore_errors=True)
+        os.makedirs(dst_config, exist_ok=True)
+        copied = 0
+        skipped = 0
+        for fn in os.listdir(src_config):
+            sp = os.path.join(src_config, fn)
+            dp = os.path.join(dst_config, fn)
+            if os.path.isfile(sp):
+                try:
+                    shutil.copy2(sp, dp)
+                    copied += 1
+                except PermissionError:
+                    skipped += 1
+        print(f"[打包] 已复制 config/ → {dst_config}（{copied} 个文件，{skipped} 个跳过）")
+
+    # 1) 打 zip（整个目录）
     base = os.path.dirname(dist_dir.rstrip("/"))
     dirname = os.path.basename(dist_dir.rstrip("/"))
     zipname = f"board_v{args.version}"
