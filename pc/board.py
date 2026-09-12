@@ -66,6 +66,25 @@ UPDATE_STATE_PATH = os.path.join(ROOT_DIR, "config", "update_state.json")
 UPDATE_URL = "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
 # 下载加速（国内可达）：把 release zip 地址前面拼 gh-proxy 前缀（按 owner 规则）。
 GH_PROXY_PREFIX = "https://gh-proxy.com/"
+# 私有仓库 GitHub token（XOR 加密，同 broker.json v2 方案）。
+# 教室端 exe 启动检查更新时用此 token 访问私有仓库的 update.json 和 Release 附件。
+# 如需更换，重新加密后替换下面常量，否则访问 404。
+_GH_TOKEN_ENCRYPTED = "LxsyMCIlMg0AWnpTeygPPQY6WRgQGltJdncTLzkVNCgNAVQjfWJ0dA=="
+
+
+def _gh_token():
+    try:
+        raw = base64.b64decode(_GH_TOKEN_ENCRYPTED.encode("ascii"))
+        return bytes(c ^ _BROKER_KEY[i % len(_BROKER_KEY)]
+                     for i, c in enumerate(raw)).decode("utf-8")
+    except Exception:
+        return ""
+
+
+def _gh_auth_header():
+    """private repo 需要 Authorization header。返回 dict 或空 dict。"""
+    t = _gh_token()
+    return {"Authorization": f"Bearer {t}"} if t else {}
 
 
 def _load_update_url_override():
@@ -274,7 +293,9 @@ for stu in roster["students"]:
 # 绝不影响主功能（拉不到更新 = 照常启动旧版）。
 def _download_bytes(url, dest_path, timeout=60):
     """流式下载到 dest_path，返回字节数；失败抛异常。"""
-    req = urllib.request.Request(url, headers={"User-Agent": "HSBoard-Update/1.0"})
+    _h = {"User-Agent": "HSBoard-Update/1.0"}
+    _h.update(_gh_auth_header())
+    req = urllib.request.Request(url, headers=_h)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         with open(dest_path, "wb") as f:
             while True:
@@ -391,7 +412,9 @@ def check_for_update_on_startup():
     if not url or "OWNER" in url:
         return False                       # 未配置真实更新源（占位），跳过
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "HSBoard-Update/1.0"})
+        _h = {"User-Agent": "HSBoard-Update/1.0"}
+        _h.update(_gh_auth_header())
+        req = urllib.request.Request(url, headers=_h)
         with urllib.request.urlopen(req, timeout=10) as resp:
             remote = json.loads(resp.read().decode("utf-8"))
     except Exception as e:
