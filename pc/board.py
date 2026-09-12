@@ -32,6 +32,7 @@ import sys
 import threading
 import time
 import urllib.request
+import urllib.parse
 from ctypes import WINFUNCTYPE, byref, windll
 from ctypes import wintypes
 from datetime import datetime
@@ -51,7 +52,7 @@ CONFIG_PATH = os.path.join(ROOT_DIR, "config", "students.json")
 # 教室端是装在碰不到的教室电脑上的桌面 exe，无法像网页那样"重新上传即升级"。
 # 故做全自动更新：每次开机先拉 update.json（GitHub 仓库），比对版本号，有新版则
 # 下载 release zip、校验 sha256、自替换 exe、重启。config/*.json 不随更新覆盖，班级配置保留。
-VERSION = "1.0.2"
+VERSION = "1.0.7"
 
 # --after-update：自更新重启时传入，跳过互斥锁检查（旧进程已释放锁，但内核对象残留
 # 会导致新进程 CreateMutexW 返回 ERROR_ALREADY_EXISTS 而 exit（1）= 更新后"卡死"）
@@ -66,25 +67,7 @@ UPDATE_STATE_PATH = os.path.join(ROOT_DIR, "config", "update_state.json")
 UPDATE_URL = "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
 # 下载加速（国内可达）：把 release zip 地址前面拼 gh-proxy 前缀（按 owner 规则）。
 GH_PROXY_PREFIX = "https://gh-proxy.com/"
-# 私有仓库 GitHub token（XOR 加密，同 broker.json v2 方案）。
-# 教室端 exe 启动检查更新时用此 token 访问私有仓库的 update.json 和 Release 附件。
-# 如需更换，重新加密后替换下面常量，否则访问 404。
-_GH_TOKEN_ENCRYPTED = "LxsyMCIlMg0AWnpTeygPPQY6WRgQGltJdncTLzkVNCgNAVQjfWJ0dA=="
-
-
-def _gh_token():
-    try:
-        raw = base64.b64decode(_GH_TOKEN_ENCRYPTED.encode("ascii"))
-        return bytes(c ^ _BROKER_KEY[i % len(_BROKER_KEY)]
-                     for i, c in enumerate(raw)).decode("utf-8")
-    except Exception:
-        return ""
-
-
-def _gh_auth_header():
-    """private repo 需要 Authorization header。返回 dict 或空 dict。"""
-    t = _gh_token()
-    return {"Authorization": f"Bearer {t}"} if t else {}
+# 仓库已改为公开：无需 token 认证，gh-proxy 前缀即可下载。
 
 
 def _load_update_url_override():
@@ -292,9 +275,8 @@ for stu in roster["students"]:
 # 班级名单/设置/已读回执全部保留。下载走 gh-proxy 加速；任何失败一律静默降级，
 # 绝不影响主功能（拉不到更新 = 照常启动旧版）。
 def _download_bytes(url, dest_path, timeout=60):
-    """流式下载到 dest_path，返回字节数；失败抛异常。"""
+    """流式下载到 dest_path，公开仓库直接下载（可套 gh-proxy 加速前缀）。"""
     _h = {"User-Agent": "HSBoard-Update/1.0"}
-    _h.update(_gh_auth_header())
     req = urllib.request.Request(url, headers=_h)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         with open(dest_path, "wb") as f:
@@ -369,6 +351,15 @@ def do_self_update(new_zip_url, expected_sha):
         shutil.rmtree(extract_dir, ignore_errors=True)
     os.makedirs(extract_dir, exist_ok=True)
     with zipfile.ZipFile(zip_path, "r") as zf:
+        # 校验 zip 完整性（防止流式写入时磁盘满导致截断）
+        bad = zf.testzip()
+        if bad is not None:
+            print(f"[更新] zip 完整性校验失败（损坏条目: {bad}），放弃更新")
+            try:
+                os.remove(zip_path)
+            except Exception:
+                pass
+            return False
         zf.extractall(extract_dir)
 
     # 找到新 exe（zip 内可能有一层目录包裹；递归找 .exe）
@@ -395,12 +386,23 @@ def do_self_update(new_zip_url, expected_sha):
         os.remove(spare)
     os.replace(cur_exe, spare)
     # 2) 新 exe -> 原路径
-    shutil.copy2(new_exe, cur_exe)
-    # 3) 启动新进程（DETACHED_PROCESS=8 脱离控制台；--after-update 让新进程跳过互斥锁检查）
-    print(f"[更新] 已替换到 v（{new_exe}），正在重启…")
+    try:
+        shutil.copy2(new_exe, cur_exe)
+    except Exception:
+        # 回滚：把旧 exe 放回去
+        os.replace(spare, cur_exe)
+        print(f"[更新] 复制新 exe 失败，已回滚到旧版")
+        return False
+    # 3) 清理中转旧 exe
+    try:
+        os.remove(spare)
+    except Exception:
+        pass
+    # 4) 启动新进程（DETACHED_PROCESS=8 脱离控制台；--after-update 让新进程跳过互斥锁检查）
+    print(f"[更新] 已替换，正在重启…")
     import subprocess
     subprocess.Popen([cur_exe, "--after-update"],
-                     creationflags=8)   # CREATE_NEW_CONSOLE 亦可，关键是 detached
+                     creationflags=8)   # DETACHED_PROCESS
     return True
 
 
@@ -412,14 +414,21 @@ def check_for_update_on_startup():
     if not url or "OWNER" in url:
         return False                       # 未配置真实更新源（占位），跳过
     try:
+        # 公开仓库：拉 update.json 也套 gh-proxy 加速（国内可达）
+        fetch_url = _proxy_download_url(url)
         _h = {"User-Agent": "HSBoard-Update/1.0"}
-        _h.update(_gh_auth_header())
-        req = urllib.request.Request(url, headers=_h)
+        req = urllib.request.Request(fetch_url, headers=_h)
         with urllib.request.urlopen(req, timeout=10) as resp:
             remote = json.loads(resp.read().decode("utf-8"))
-    except Exception as e:
-        print(f"[更新] 拉取 update.json 失败（{e.__class__.__name__}），按当前版本启动")
-        return False
+    except Exception:
+        # gh-proxy 失败，回退原始 URL 再试
+        try:
+            req = urllib.request.Request(url, headers=_h)
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                remote = json.loads(resp.read().decode("utf-8"))
+        except Exception as e:
+            print(f"[更新] 拉取 update.json 失败（{e.__class__.__name__}），按当前版本启动")
+            return False
     remote_ver = str(remote.get("version") or "")
     if _ver_tuple(remote_ver) <= _ver_tuple(VERSION):
         print(f"[更新] 已是最新版 {remote_ver}（本地 {VERSION}）")
@@ -430,6 +439,16 @@ def check_for_update_on_startup():
     zip_url = str(remote.get("release_zip") or "").strip()
     if not zip_url:
         print("[更新] 远端未提供 release_zip，跳过")
+        return False
+    # 域名白名单：只允许 GitHub release / gh-proxy 加速前缀，防止 update.json 被篡改后指向恶意源
+    _ALLOWED_DOMAINS = ("github.com", "gh-proxy.com")
+    _zip_host = ""
+    try:
+        _zip_host = urllib.parse.urlparse(zip_url).netloc.lower()
+    except Exception:
+        pass
+    if not any(_zip_host.endswith(d) for d in _ALLOWED_DOMAINS):
+        print(f"[更新] release_zip 域名不受信（{_zip_host}），拒绝下载")
         return False
     print(f"[更新] 发现新版本 {remote_ver}（当前 {VERSION}）：{remote.get('changelog','')}")
     try:
@@ -1038,22 +1057,23 @@ def _corner_from_pos(sp):
 
 
 def _apply_geometry():
-    """按位置摆放窗口：CLI --pos > settings["corner"]（角语义，任何缩放档天然贴角）
-    > 旧版数字 pos 换算角 > 默认右上角。x/y 均钳制在屏幕内。
-    （旧版 bug：数字 pos 被 Z() 再乘缩放档，切缩放后位置乱飞——已改角语义根治）"""
+    """按位置摆放窗口：CLI --pos > 自由拖拽位（pos_x/pos_y）> settings["corner"]
+    > 旧版数字 pos 换算角 > 默认右上角。x/y 均钳制在屏幕内。"""
     sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
     if POS:
-        x, y = int(POS[0] * S), int(POS[1] * S)    # CLI 逻辑屏幕坐标 -> 物理（不乘 UI_SCALE）
+        x, y = int(POS[0] * S), int(POS[1] * S)
+    elif settings.get("pos_x") is not None and settings.get("pos_y") is not None:
+        x, y = int(settings["pos_x"]), int(settings["pos_y"])
     else:
         corner = settings.get("corner") or (_corner_from_pos(settings["pos"]) if settings.get("pos") else "")
         if corner:
             x = (sw - W - Z(24)) if "右" in corner else Z(24)
-            y = Z(24) if "上" in corner else max(Z(24), sh - SAMPLE_H - Z(56))
+            y = Z(24) if "上" in corner else max(Z(24), sh - H - Z(56))
         else:
             x, y = sw - W - Z(24), Z(24)
     x = max(0, min(int(x), sw - W))
-    y = max(0, min(int(y), max(Z(24), sh - SAMPLE_H - Z(40))))
-    root.geometry(f"{W}x{SAMPLE_H}+{x}+{y}")
+    y = max(0, min(int(y), max(Z(24), sh - H - Z(40))))
+    root.geometry(f"{W}x{H}+{x}+{y}")
 
 
 def recompute_metrics():
@@ -1410,28 +1430,164 @@ def activate_card(sid):
     render()
 
 
-# ---------- 触控/拖拽滚动（希沃白板）+ 点击"松开判定" ----------
+# ---------- 交互：边缘/四角缩放 + 标题区拖拽移动 + 卡片区滚动/点击 ----------
 # Windows 把单指触摸转成鼠标事件：按下 + B1-Motion 即覆盖触屏滑动，与滚轮同一条滚动通道。
-# 点击改为松开判定：位移超阈值视为拖拽滚动（不触发点击），未超阈值才命中卡片/设置按钮。
+# 点击改为松开判定：位移超阈值视为拖拽（不触发点击），未超阈值才命中卡片/设置按钮。
+# 边缘/四角热区（R+8px）-> 缩放模式；上方标题区（y<75）-> 移动模式；卡片区 -> 滚动/点击不变
 _drag = [0, 0, False]                          # [上一事件 y, 累计位移 |dy|, 已进入拖拽态]
 _drag_render_due = [False]                     # after_idle 合并高频 Motion 的重绘
+_last_interact = [0.0]                         # 上次触控/滚轮交互时间
+
+_interact_mode = ["none"]                      # "none" / "scroll" / "resize" / "move"
+_resize_state = [0, 0, 0, 0, 0, 0, ""]        # [x_root, y_root, win_x, win_y, w, h, zone]
+_move_state = [0, 0, 0, 0]                    # [x_root, y_root, win_x, win_y]
+_rm_entered = [False]                         # resize/move 已越过误触阈值
+_HOT = 8                                       # 热区厚度（逻辑像素，经 Z() 缩放）
+
+
+def hit_zone(event, w, h, r, hot):
+    """返回事件在 canvas 上命中的边缘/四角热区：NW/NE/SE/SW/N/S/E/W 或 None（内容区）。"""
+    x, y = event.x, event.y
+    if r > 0:
+        for cx, cy, name in [(r, r, "NW"), (w - r, r, "NE"), (r, h - r, "SW"), (w - r, h - r, "SE")]:
+            dx, dy = x - cx, y - cy
+            if math.sqrt(dx*dx + dy*dy) <= r + hot + 2:
+                if x >= r and x <= w - r and y >= r and y <= h - r:
+                    continue
+                return name
+    else:
+        if x < hot and y < hot: return "NW"
+        if x > w - hot and y < hot: return "NE"
+        if x < hot and y > h - hot: return "SW"
+        if x > w - hot and y > h - hot: return "SE"
+    if y < hot and r <= x <= w - r: return "N"
+    if y > h - hot and r <= x <= w - r: return "S"
+    if x < hot and r <= y <= h - r: return "W"
+    if x > w - hot and r <= y <= h - r: return "E"
+    return None
+
+
+def _cursor_for_zone(zone):
+    if zone in ("NW", "SE"): return "size_nw_se"
+    if zone in ("NE", "SW"): return "size_ne_sw"
+    if zone in ("N", "S"):   return "sb_v_double_arrow"
+    if zone in ("E", "W"):   return "sb_h_double_arrow"
+    return "arrow"
+
+
+def _on_hover(event):
+    """悬停时光标随热区变化（发现性：边缘可拖拽），按着拖拽时保持不变。"""
+    if _interact_mode[0] != "none":
+        return
+    try:
+        w, h = canvas.winfo_width(), canvas.winfo_height()
+        zone = hit_zone(event, w, h, R, Z(_HOT))
+        root.config(cursor=_cursor_for_zone(zone))
+    except Exception:
+        pass
+
+
+def _save_free_pos():
+    """拖拽移动后保存屏幕坐标（覆盖四角预设），下次启动回到自由位置。"""
+    settings["pos_x"] = root.winfo_rootx()
+    settings["pos_y"] = root.winfo_rooty()
+    settings.pop("corner", None)
+    settings.pop("pos", None)
+    save_settings()
 
 
 def _on_press(event):
     _drag[0] = event.y
     _drag[1] = 0
     _drag[2] = False
+    _invis_n[0] = 0
+    _last_interact[0] = time.time()
+    _rm_entered[0] = False
+
+    w, h = canvas.winfo_width(), canvas.winfo_height()
+    zone = hit_zone(event, w, h, R, Z(_HOT))
+    if zone:
+        _interact_mode[0] = "resize"
+        _resize_state[0] = event.x_root
+        _resize_state[1] = event.y_root
+        _resize_state[2] = root.winfo_rootx()
+        _resize_state[3] = root.winfo_rooty()
+        _resize_state[4] = w
+        _resize_state[5] = h
+        _resize_state[6] = zone
+    elif event.y < Z(75):
+        _interact_mode[0] = "move"
+        _move_state[0] = event.x_root
+        _move_state[1] = event.y_root
+        _move_state[2] = root.winfo_rootx()
+        _move_state[3] = root.winfo_rooty()
+    else:
+        _interact_mode[0] = "scroll"
 
 
 def _on_motion(event):
+    _invis_n[0] = 0
+    _last_interact[0] = time.time()
+    mode = _interact_mode[0]
+
+    if mode == "resize":
+        z = _resize_state[6]
+        dx = event.x_root - _resize_state[0]
+        dy = event.y_root - _resize_state[1]
+        dist = (dx*dx + dy*dy) ** 0.5
+        if not _rm_entered[0] and dist > Z(10):
+            _rm_entered[0] = True
+            root.config(cursor=_cursor_for_zone(z))
+        if not _rm_entered[0]:
+            return
+        w0, h0 = _resize_state[4], _resize_state[5]
+        sx, sy = _resize_state[2], _resize_state[3]
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+        nw, nh, nx, ny = w0, h0, sx, sy
+        if z in ("NE", "SE"): nw = max(Z(300), min(w0 + dx, sw))
+        if z in ("NW", "SW"): nw = max(Z(300), min(w0 - dx, sw)); nx = sx + (w0 - nw)
+        if z in ("NW", "NE"): nh = max(Z(400), min(h0 - dy, sh)); ny = sy + (h0 - nh)
+        if z in ("SW", "SE"): nh = max(Z(400), min(h0 + dy, sh))
+        if z == "N":          nh = max(Z(400), min(h0 - dy, sh)); ny = sy + (h0 - nh)
+        if z == "S":          nh = max(Z(400), min(h0 + dy, sh))
+        if z == "W":          nw = max(Z(300), min(w0 - dx, sw)); nx = sx + (w0 - nw)
+        if z == "E":          nw = max(Z(300), min(w0 + dx, sw))
+        nx = max(0, min(nx, sw - nw))
+        ny = max(0, min(ny, sh - nh))
+        root.geometry(f"{nw}x{nh}+{nx}+{ny}")
+        canvas.config(width=nw, height=nh, bg=PANEL)
+        return
+
+    if mode == "move":
+        dx = event.x_root - _move_state[0]
+        dy = event.y_root - _move_state[1]
+        dist = (dx*dx + dy*dy) ** 0.5
+        if not _rm_entered[0] and dist > Z(10):
+            _rm_entered[0] = True
+            root.config(cursor="fleur")
+        if not _rm_entered[0]:
+            return
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+        cw = canvas.winfo_width()
+        ch = canvas.winfo_height()
+        nx = max(0, min(_move_state[2] + dx, sw - cw))
+        ny = max(0, min(_move_state[3] + dy, sh - ch))
+        root.geometry(f"{cw}x{ch}+{nx}+{ny}")
+        return
+
+    if mode != "scroll":
+        _interact_mode[0] = "none"
+        return
+
+    # scroll 模式（原有触控拖拽滚动，100% 不变）
     dy = event.y - _drag[0]
     _drag[0] = event.y
     _drag[1] += abs(dy)
-    if not _drag[2] and _drag[1] > Z(8):       # 阈值（逻辑 8px）：触控抖动不误判
+    if not _drag[2] and _drag[1] > Z(8):
         _drag[2] = True
     if _drag[2] and dy:
         scroll_y[0] = max(0, min(scroll_y[0] - dy, scroll_max[0]))
-        if not _drag_render_due[0]:            # 合并同一帧内的多次 Motion，只重绘一次
+        if not _drag_render_due[0]:
             _drag_render_due[0] = True
 
             def _do():
@@ -1444,8 +1600,33 @@ def _on_motion(event):
 
 
 def _on_release(event):
+    mode = _interact_mode[0]
+    if mode == "resize":
+        if _rm_entered[0]:
+            _save_free_pos()
+            canvas.after(50, lambda: (resample_background(), render()))
+        else:
+            nx, ny = _resize_state[2], _resize_state[3]
+            w, h = _resize_state[4], _resize_state[5]
+            root.geometry(f"{w}x{h}+{nx}+{ny}")
+            canvas.config(width=w, height=h)
+        _interact_mode[0] = "none"
+        root.config(cursor="arrow")
+        return
+    if mode == "move":
+        if _rm_entered[0]:
+            _save_free_pos()
+            canvas.after(50, lambda: (resample_background(), render()))
+        else:
+            root.geometry(f"{canvas.winfo_width()}x{canvas.winfo_height()}"
+                          f"+{_move_state[2]}+{_move_state[3]}")
+        _interact_mode[0] = "none"
+        root.config(cursor="arrow")
+        return
+
+    # scroll / none 模式：卡片点击/右上角齿轮（原有逻辑）
     if _drag[2]:
-        return                                 # 拖拽滚动结束：不算点击
+        return
     items = canvas.find_withtag("current")
     if not items:
         return
@@ -1462,6 +1643,7 @@ def _on_release(event):
 canvas.bind("<ButtonPress-1>", _on_press)
 canvas.bind("<B1-Motion>", _on_motion)
 canvas.bind("<ButtonRelease-1>", _on_release)
+canvas.bind("<Motion>", _on_hover)
 
 
 # ---------- 设置菜单（右键面板任意处，或点右下角"⚙ 设置"）----------
@@ -1528,6 +1710,8 @@ def move_to_corner(name):
     root.geometry(f"{W}x{H}+{int(x)}+{int(y)}")
     settings["corner"] = name
     settings.pop("pos", None)                        # 旧数字坐标废弃，统一角语义
+    settings.pop("pos_x", None)                      # 自由拖拽坐标清除，回到角预设
+    settings.pop("pos_y", None)
     save_settings()
     resample_background()                            # 位置变了壁纸也变了，需重采样
     print(f"[位置] 已移到{name}并保存")
@@ -1623,7 +1807,17 @@ menu.add_checkbutton(label="开机自启", variable=_auto_var,
                      command=lambda: set_autostart(_auto_var.get()))
 menu.add_command(label="重新获取背景图", command=resample_background)
 menu.add_separator()
+menu.add_command(label="关于", command=lambda: _show_about())
 menu.add_command(label="退出", command=root.destroy)
+
+
+def _show_about():
+    """显示关于对话框：版本号 + 作者信息。"""
+    from tkinter import messagebox
+    messagebox.showinfo("关于班级留言板",
+        f"班级留言板 v{VERSION}\n\n"
+        f"作者：邓嘉佑\n"
+        f"适用班级：{CLASS_NAME}")
 
 
 def open_menu(event):
@@ -1638,6 +1832,8 @@ canvas.bind("<Button-3>", open_menu)           # 左键（含触控）统一走 
 
 def on_wheel(event):
     """滚轮滚动卡片列表：上滚看上方内容，下滚看下方（每次约 64 逻辑像素）"""
+    _invis_n[0] = 0              # 用户正在滚动面板：重置不可见计数，防 DWM 丢表面误判置顶
+    _last_interact[0] = time.time()
     d = -1 if event.delta > 0 else 1
     scroll_y[0] = max(0, min(scroll_y[0] + d * Z(64), scroll_max[0]))
     try:
@@ -1845,13 +2041,19 @@ def tick():
                 _user32.InvalidateRect(hwnd, None, False)
                 # 可见性自检：显示桌面(Win+D)是预期状态，1 秒内进浮动置顶（快速反应）；
                 # 桌面还原状态下连续 3 秒不可见（Shell 图标层重排等异常）才进浮动
-                vis = _self_visible()
-                if not has_apps and vis is None:
-                    vis = False         # 显示桌面时无正常遮挡可言，采样失败按异常覆盖兜底
-                _invis_n[0] = _invis_n[0] + 1 if vis is False else 0
-                if _invis_n[0] >= (1 if not has_apps else 3):
-                    _enter_float()
-                    return
+                # 触控滚动/滚轮交互窗口期（1 秒内）跳过自检：
+                # 用户正在操作面板即证明其可见，且高频重绘期间 DWM 会短暂丢重定向表面，
+                # 采样必然失败 → 误累积计数会误触浮动置顶。
+                if time.time() - _last_interact[0] < 1.0:
+                    _invis_n[0] = 0
+                else:
+                    vis = _self_visible()
+                    if not has_apps and vis is None:
+                        vis = False         # 显示桌面时无正常遮挡可言，采样失败按异常覆盖兜底
+                    _invis_n[0] = _invis_n[0] + 1 if vis is False else 0
+                    if _invis_n[0] >= (1 if not has_apps else 3):
+                        _enter_float()
+                        return
         except Exception as e:
             print(f"[桌面] 保活异常: {e}")
     root.after(1000, tick)
