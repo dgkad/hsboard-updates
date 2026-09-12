@@ -66,11 +66,12 @@ def main():
 
     # 1) 打 zip（整个目录，config 不在包里；包内只含 exe + 依赖）
     base = os.path.dirname(dist_dir.rstrip("/"))
-    name = os.path.basename(dist_dir.rstrip("/"))
-    zip_path = os.path.join(base, f"{name}_v{args.version}.zip")
+    dirname = os.path.basename(dist_dir.rstrip("/"))
+    zipname = f"board_v{args.version}"
+    zip_path = os.path.join(base, f"{zipname}.zip")
     if os.path.exists(zip_path):
         os.remove(zip_path)
-    shutil.make_archive(zip_path[:-4], "zip", root_dir=base, base_dir=name)
+    shutil.make_archive(zip_path[:-4], "zip", root_dir=base, base_dir=dirname)
     size_mb = os.path.getsize(zip_path) / (1024 * 1024)
     print(f"[打包] 已生成 {zip_path}（{size_mb:.1f} MB）")
 
@@ -78,7 +79,7 @@ def main():
     print(f"[sha256] {sha}")
 
     # 2) 生成 update.json（指向 GitHub Release 附件的 raw 直链）
-    release_asset = f"{name}_v{args.version}.zip"
+    release_asset = f"{zipname}.zip"
     download_url = (f"https://github.com/{args.owner}/{args.repo}"
                     f"/releases/download/v{args.version}/{release_asset}")
     update_json = {

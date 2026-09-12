@@ -69,14 +69,15 @@ jobs:
         shell: bash
         run: |
           cd dist
-          name="班级留言板"
+          dirname="班级留言板"
+          zipname="board_v${{ steps.ver.outputs.ver }}"
           ver="${{ steps.ver.outputs.ver }}"
-          # 把目录压成 班级留言板_v{ver}.zip
-          7z a -tzip "${name}_v${ver}.zip" "${name}" 2>/dev/null || powershell -NoProfile -Command "Compress-Archive -Path '$name' -DestinationPath \"${name}_v${ver}.zip\""
+          # 把目录压成 board_v{ver}.zip（GitHub API 不接受中文文件名）
+          7z a -tzip "${zipname}.zip" "${dirname}" 2>/dev/null || powershell -NoProfile -Command "Compress-Archive -Path '$dirname' -DestinationPath \"${zipname}.zip\""
           # 算 sha256
-          sha=$(python -c "import hashlib;print(hashlib.sha256(open('${name}_v${ver}.zip','rb').read()).hexdigest())")
+          sha=$(python -c "import hashlib;print(hashlib.sha256(open('${zipname}.zip','rb').read()).hexdigest())")
           ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          dl="https://github.com/${{ github.repository }}/releases/download/v${ver}/${name}_v${ver}.zip"
+          dl="https://github.com/${{ github.repository }}/releases/download/v${ver}/${zipname}.zip"
           raw="https://raw.githubusercontent.com/${{ github.repository }}/main/update.json"
           cat > update.json <<EOF
           {
@@ -99,7 +100,7 @@ jobs:
           name: 教室端 v${{ steps.ver.outputs.ver }}
           body: ${{ inputs.changelog || '自动发布教室端更新' }}
           files: |
-            dist/班级留言板_v${{ steps.ver.outputs.ver }}.zip
+            dist/board_v${{ steps.ver.outputs.ver }}.zip
 
       - name: 把 update.json 推回 main
         run: |
