@@ -1,9 +1,9 @@
 {
-  "version": "1.0.2",
+  "version": "1.0.3",
   "channel": "stable",
-  "published_at": "2026-09-12T18:46:18Z",
-  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.2/board_v1.0.2.zip",
-  "sha256": "190ca58ff9ac7f7e7b59cfa8513e7a9f10e1cce2699c34264992069b2e8a5925",
-  "changelog": "v1.0.2 修复：缩放后位置乱飞 + 已读区升序排列 + 提示仅计未读 + 文字重叠 + 私有仓库 API 下载",
+  "published_at": "2026-09-12T18:55:18Z",
+  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.3/board_v1.0.3.zip",
+  "sha256": "c453ab6e25dd8351f6f8be864acd9e46f31b5635128769968ad4217970c0126f",
+  "changelog": "v1.0.3 添加关于对话框 + 私有仓库 API 下载修复",
   "self_url": "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
 }
