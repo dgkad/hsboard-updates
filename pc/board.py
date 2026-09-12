@@ -51,7 +51,7 @@ CONFIG_PATH = os.path.join(ROOT_DIR, "config", "students.json")
 # 教室端是装在碰不到的教室电脑上的桌面 exe，无法像网页那样"重新上传即升级"。
 # 故做全自动更新：每次开机先拉 update.json（GitHub 仓库），比对版本号，有新版则
 # 下载 release zip、校验 sha256、自替换 exe、重启。config/*.json 不随更新覆盖，班级配置保留。
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 
 # --after-update：自更新重启时传入，跳过互斥锁检查（旧进程已释放锁，但内核对象残留
 # 会导致新进程 CreateMutexW 返回 ERROR_ALREADY_EXISTS 而 exit（1）= 更新后"卡死"）
@@ -244,8 +244,8 @@ def save_settings():
         print(f"[设置] 保存失败: {e}")
 
 
-if POS is None and settings.get("pos"):
-    POS = tuple(settings["pos"])               # 菜单里调过的位置优先于默认右上角
+# （位置：settings["corner"]/旧 settings["pos"] 统一由 _apply_geometry 处理，
+#   不再装进 POS——POS 专指 CLI --pos 显式坐标，避免缩放档变化时位置乱飞）
 
 # ---------- 班级解析（多班发行版：一份 exe 三班通用，settings["class"] 持久化）----------
 CLASSES_PATH = os.path.join(ROOT_DIR, "config", "classes.json")
@@ -1027,15 +1027,33 @@ root.overrideredirect(True)
 root.config(bg=PANEL)
 
 
+def _corner_from_pos(sp):
+    """旧版数字 pos（逻辑屏幕坐标）换算为最近角名（按屏幕中线划分）"""
+    try:
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+        px, py = float(sp[0]) * S, float(sp[1]) * S
+        return ("左" if px < sw / 2 else "右") + ("上" if py < sh / 2 else "下")
+    except Exception:
+        return ""
+
+
 def _apply_geometry():
-    """按 settings/CLI 位置与当前 W/SAMPLE_H 摆放窗口（x 钳制在屏幕内）"""
-    sw = root.winfo_screenwidth()
+    """按位置摆放窗口：CLI --pos > settings["corner"]（角语义，任何缩放档天然贴角）
+    > 旧版数字 pos 换算角 > 默认右上角。x/y 均钳制在屏幕内。
+    （旧版 bug：数字 pos 被 Z() 再乘缩放档，切缩放后位置乱飞——已改角语义根治）"""
+    sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
     if POS:
-        x, y = Z(POS[0]), Z(POS[1])
+        x, y = int(POS[0] * S), int(POS[1] * S)    # CLI 逻辑屏幕坐标 -> 物理（不乘 UI_SCALE）
     else:
-        x, y = sw - W - Z(24), Z(24)
+        corner = settings.get("corner") or (_corner_from_pos(settings["pos"]) if settings.get("pos") else "")
+        if corner:
+            x = (sw - W - Z(24)) if "右" in corner else Z(24)
+            y = Z(24) if "上" in corner else max(Z(24), sh - SAMPLE_H - Z(56))
+        else:
+            x, y = sw - W - Z(24), Z(24)
     x = max(0, min(int(x), sw - W))
-    root.geometry(f"{W}x{SAMPLE_H}+{x}+{int(y)}")
+    y = max(0, min(int(y), max(Z(24), sh - SAMPLE_H - Z(40))))
+    root.geometry(f"{W}x{SAMPLE_H}+{x}+{y}")
 
 
 def recompute_metrics():
@@ -1176,7 +1194,7 @@ def layout_cards():
     read_zone = sorted(
         (kv for kv in with_msgs
          if kv[1]["unread"] == 0 and read_pending.get(kv[0], 0) <= now_ts),
-        key=lambda kv: kv[1]["messages"][-1]["ts"], reverse=True)
+        key=lambda kv: kv[1]["messages"][-1]["ts"])   # 已读区升序：先发的在上，后发的在下
     x1, x2 = Z(24), W - Z(24)
     mid = (x1 + x2) // 2
     gut = Z(5)                                 # 双列中缝
@@ -1249,19 +1267,23 @@ def render():
         canvas.create_text(W // 2, Z(140), text="暂时没有留言\n等家长的第一条消息吧",
                            font=("Microsoft YaHei", PF(12)), fill=TXT_DIM, justify="center")
 
-    hidden_n = 0                               # 视口下方的卡片数
-    above_n = 0                                # 视口上方的卡片数
-    below_unread = 0                           # 视口下方的未读消息条数（仅统计未读）
+    hidden_n = 0                               # 视口下方的卡片总数（含已读，仅兜底文案用）
+    above_n = 0                                # 视口上方未读卡片数（口径：不含已读）
+    below_unread = 0                           # 视口下方未读卡片数（口径：不含已读）
+    now_ts = time.time()
     items, _, uz, rz = layout_cards()          # 统一行进器：分区/密度/展开跨行全在此处理
     dkey = _density_key()
     for sid_key, s, open_, cx1, cx2, y_c, h in items:
         unread = s["unread"]
+        is_unread = unread > 0 or read_pending.get(sid_key, 0) > now_ts
         if y_c + h < off + Z(60):              # 完全滚出视口上方
-            above_n += 1
+            if is_unread:                      # 提示只数未读（已读不催促）
+                above_n += 1
             continue
         if y_c > off + H - Z(96):              # 在视口下方：滚轮/触摸可看到，不绘制
             hidden_n += 1                      # （下方保留 96 逻辑像素给底部提示/页脚，防文字压卡片）
-            below_unread += unread
+            if is_unread:
+                below_unread += 1
             continue
         y = y_c - off                          # 内容坐标 -> 视口坐标
         tags = ("card", sid_key)
@@ -1282,7 +1304,7 @@ def render():
                 canvas.create_text(cx1 + Z(16), my, text=fmt_time(m["ts"]), anchor="nw",
                                    font=("Consolas", PF(9)), fill=TXT_SUB, tags=tags)
                 for li, ln in enumerate(lines):
-                    canvas.create_text(cx1 + Z(58), my + Z(18) * li, text=ln, anchor="nw",
+                    canvas.create_text(cx1 + Z(80), my + Z(18) * li, text=ln, anchor="nw",
                                        font=("Microsoft YaHei", PF(10)), fill="#C9D2E8", tags=tags)
                 my += msg_block_h(lines)
             canvas.create_text(cx1 + Z(16), y + h - Z(10), text="点击收起", anchor="w",
@@ -1319,8 +1341,11 @@ def render():
                                font=("Consolas", PF(8 if dkey == "compact" else 9), "bold"),
                                fill="#FFFFFF", tags=tags)
 
-    if above_n > 0:                            # 顶部位置提示：视口上方还有几位同学
-        canvas.create_text(W - Z(34), Z(62), text=f"↑ 上方还有 {above_n} 位同学",
+    if above_n > 0:                            # 顶部位置提示：上方还有几位未读同学（PANEL 底垫防卡片文字穿过压叠）
+        tip_top = f"↑ 上方还有 {above_n} 位同学"
+        tw = int(len(tip_top) * Z(9)) + Z(28)
+        rrect(W - Z(34) - tw, Z(50), W - Z(34), Z(74), Z(8), fill=PANEL, outline="")
+        canvas.create_text(W - Z(34), Z(62), text=tip_top,
                            anchor="e", font=("Microsoft YaHei", PF(9)), fill=TXT_SUB)
 
     thumb_y, thumb_h = 0, 0
@@ -1334,12 +1359,12 @@ def render():
         rrect(tx, track_t, tx + Z(4), track_b, Z(2), fill="#2A3348", outline="")
         rrect(tx, thumb_y, tx + Z(4), thumb_y + thumb_h, Z(2), fill=CARD_EDGE, outline="")
 
-    if scroll_max[0] > Z(10):                  # 有内容滚出视口：底部提示（计数仅含未读）
+    if scroll_max[0] > Z(10):                  # 有内容滚出视口：底部提示（计数仅含未读同学）
         tip = "留言较多，滚轮/触摸滑动查看更多"
         if below_unread > 0:
-            tip += f" · 下方还有 {below_unread} 条消息"
+            tip += f" · 下方还有 {below_unread} 位同学"
         elif hidden_n > 0:
-            tip += f" · 下方还有 {hidden_n} 位同学"
+            tip += f" · 下方还有 {hidden_n} 位同学（含已读）"
         tw = int(len(tip) * Z(9)) + Z(28)      # 底垫：滚动中卡片可延伸到提示行，垫底防文字压叠
         rrect(W // 2 - tw // 2, H - Z(78), W // 2 + tw // 2, H - Z(50), Z(8),
               fill=PANEL, outline="")
@@ -1496,12 +1521,13 @@ def resample_background():
 
 
 def move_to_corner(name):
-    """位置预设：屏幕四角（保存进设置文件，重启仍生效）"""
+    """位置预设：屏幕四角（存角名而非坐标——切缩放档后按角重算，天然贴角不再乱飞）"""
     sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
     x = (sw - W - Z(24)) if "右" in name else Z(24)
-    y = Z(24) if "上" in name else max(Z(24), sh - H - Z(56))
-    root.geometry(f"{W}x{H}+{x}+{y}")
-    settings["pos"] = [int(x / S), int(y / S)]
+    y = Z(24) if "上" in name else max(Z(24), sh - SAMPLE_H - Z(56))
+    root.geometry(f"{W}x{H}+{int(x)}+{int(y)}")
+    settings["corner"] = name
+    settings.pop("pos", None)                        # 旧数字坐标废弃，统一角语义
     save_settings()
     resample_background()                            # 位置变了壁纸也变了，需重采样
     print(f"[位置] 已移到{name}并保存")

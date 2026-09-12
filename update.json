@@ -1,9 +1,9 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.2",
   "channel": "stable",
-  "published_at": "2026-09-12T17:56:29Z",
-  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.1/board_v1.0.1.zip",
-  "sha256": "ad82f52a17d406cdded5fd72f61f65c8d32b9beb2a690d27c5778b61f1513344",
-  "changelog": "v1.0.1 修复：自更新互斥锁挡死 + 整合同级留言板-PC 结构 + 应用图标 + 私有仓库 token 认证",
+  "published_at": "2026-09-12T18:36:18Z",
+  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.2/board_v1.0.2.zip",
+  "sha256": "8f7a7d2e88b339785451e4edd9f9b3bd79450a212fec7af3e6229a079812b35d",
+  "changelog": "v1.0.2 修复：缩放后位置乱飞 + 已读区升序排列 + 顶部/底部提示仅计未读 + 展开卡片文字重叠",
   "self_url": "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
 }
