@@ -82,17 +82,19 @@ def main():
             shutil.copy2(sp, dp)
     print(f"[打包] 已复制 exe + _internal → {bundle_dir}")
 
-    # 复制 config/（逐个文件，跳过被锁的 xlsx 等）
+    # 复制 config/（递归复制子目录，跳过被锁文件）
     src_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config")
     dst_config = os.path.join(bundle_dir, "config")
     if os.path.isdir(src_config):
-        os.makedirs(dst_config, exist_ok=True)
         copied = 0
         skipped = 0
-        for fn in os.listdir(src_config):
-            sp = os.path.join(src_config, fn)
-            dp = os.path.join(dst_config, fn)
-            if os.path.isfile(sp):
+        for root, dirs, files in os.walk(src_config):
+            rel = os.path.relpath(root, src_config)
+            target_dir = os.path.join(dst_config, rel) if rel != "." else dst_config
+            os.makedirs(target_dir, exist_ok=True)
+            for fn in files:
+                sp = os.path.join(root, fn)
+                dp = os.path.join(target_dir, fn)
                 try:
                     shutil.copy2(sp, dp)
                     copied += 1

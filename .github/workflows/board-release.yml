@@ -76,7 +76,7 @@ jobs:
           # 组装外层文件夹
           mkdir -p "${bundle}"
           cp -r "${dirname}"/* "${bundle}/"       # exe + _internal
-          cp -r ../config "${bundle}/config"       # 配置文件
+          cp -r ../config "${bundle}/config"       # 配置文件（含 students/ 子目录）
           cp ../docs/使用说明-教室端.txt "${bundle}/使用说明.txt"  # 使用说明
           echo "班级留言板-PC 已组装：$(ls -1 ${bundle})"
           # 打包
