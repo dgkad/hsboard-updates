@@ -64,12 +64,28 @@ def main():
         sys.exit(1)
     print(f"[打包] 主 exe: {exe}")
 
-    # 0) 把 config/ 复制进 dist 目录（frozen exe 启动时需要它）
+    base = os.path.dirname(dist_dir.rstrip("/"))
+    
+    # 0) 把 config/ + 使用说明.txt 整理进外层的 班级留言板-PC/ 目录
+    bundle_dir = os.path.join(base, f"班级留言板-PC")
+    if os.path.isdir(bundle_dir):
+        shutil.rmtree(bundle_dir, ignore_errors=True)
+    os.makedirs(bundle_dir, exist_ok=True)
+
+    # 复制 exe + _internal
+    for item in os.listdir(dist_dir):
+        sp = os.path.join(dist_dir, item)
+        dp = os.path.join(bundle_dir, item)
+        if os.path.isdir(sp):
+            shutil.copytree(sp, dp, dirs_exist_ok=True)
+        else:
+            shutil.copy2(sp, dp)
+    print(f"[打包] 已复制 exe + _internal → {bundle_dir}")
+
+    # 复制 config/（逐个文件，跳过被锁的 xlsx 等）
     src_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config")
-    dst_config = os.path.join(dist_dir, "config")
+    dst_config = os.path.join(bundle_dir, "config")
     if os.path.isdir(src_config):
-        if os.path.isdir(dst_config):
-            shutil.rmtree(dst_config, ignore_errors=True)
         os.makedirs(dst_config, exist_ok=True)
         copied = 0
         skipped = 0
@@ -84,14 +100,21 @@ def main():
                     skipped += 1
         print(f"[打包] 已复制 config/ → {dst_config}（{copied} 个文件，{skipped} 个跳过）")
 
-    # 1) 打 zip（整个目录）
-    base = os.path.dirname(dist_dir.rstrip("/"))
-    dirname = os.path.basename(dist_dir.rstrip("/"))
+    # 复制 使用说明.txt
+    readme_src = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "docs", "使用说明-教室端.txt"
+    )
+    readme_dst = os.path.join(bundle_dir, "使用说明.txt")
+    if os.path.isfile(readme_src):
+        shutil.copy2(readme_src, readme_dst)
+        print(f"[打包] 已复制 使用说明.txt → {readme_dst}")
+
+    # 1) 打 zip（整个 班级留言板-PC/ 目录）
     zipname = f"board_v{args.version}"
     zip_path = os.path.join(base, f"{zipname}.zip")
     if os.path.exists(zip_path):
         os.remove(zip_path)
-    shutil.make_archive(zip_path[:-4], "zip", root_dir=base, base_dir=dirname)
+    shutil.make_archive(zip_path[:-4], "zip", root_dir=base, base_dir="班级留言板-PC")
     size_mb = os.path.getsize(zip_path) / (1024 * 1024)
     print(f"[打包] 已生成 {zip_path}（{size_mb:.1f} MB）")
 
