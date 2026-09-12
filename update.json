@@ -1,9 +1,9 @@
 {
-  "version": "1.0.6",
+  "version": "1.0.7",
   "channel": "stable",
-  "published_at": "2026-09-12T23:15:45Z",
-  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.6/board_v1.0.6.zip",
-  "sha256": "5461392834365fc20e12445c9689f4b1db076ad77ef92f3c28d4a6216814717f",
-  "changelog": "新增自由拖拽与窗口缩放（边/角热区命中、标题栏拖动、圆角命中）、修复光标名称兼容 Windows Tk",
+  "published_at": "2026-09-12T23:54:15Z",
+  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.7/board_v1.0.7.zip",
+  "sha256": "00d4c16b0a51f90e95a88be2b07e48c216cc3f34aeee62e630cb9200aa67adf6",
+  "changelog": "修复：初始窗口高度从 SAMPLE_H(900) 改为 H(560)，窗口大幅缩小；修复 console=False（不再弹控制台黑窗）；优化底部 y 位计算",
   "self_url": "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
 }
