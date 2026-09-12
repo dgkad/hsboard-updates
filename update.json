@@ -1,9 +1,9 @@
 {
-  "version": "1.0.4",
+  "version": "1.0.5",
   "channel": "stable",
-  "published_at": "2026-09-12T19:30:02Z",
-  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.4/board_v1.0.4.zip",
-  "sha256": "5c758e82f4989be544d157dba3877bfdb3bddca56339dc7d991ae080348d8c5a",
-  "changelog": "v1.0.4 修复触控板/触屏滚动误触发面板置顶",
+  "published_at": "2026-09-12T19:42:07Z",
+  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.5/board_v1.0.5.zip",
+  "sha256": "d1b33560e69d6bcbf3a7f1e145fb8ed063f7578348ac76ecec0efacbf4230eb9",
+  "changelog": "v1.0.5 公开仓库 + gh-proxy 下载：更新源改为公开仓库，国内走 gh-proxy 代理加速，无需 token 认证",
   "self_url": "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
 }
