@@ -23,6 +23,7 @@
 """
 import base64
 import ctypes
+import hashlib
 import json
 import math
 import os
@@ -51,6 +52,14 @@ CONFIG_PATH = os.path.join(ROOT_DIR, "config", "students.json")
 # 故做全自动更新：每次开机先拉 update.json（GitHub 仓库），比对版本号，有新版则
 # 下载 release zip、校验 sha256、自替换 exe、重启。config/*.json 不随更新覆盖，班级配置保留。
 VERSION = "1.0.0"
+
+# --after-update：自更新重启时传入，跳过互斥锁检查（旧进程已释放锁，但内核对象残留
+# 会导致新进程 CreateMutexW 返回 ERROR_ALREADY_EXISTS 而 exit（1）= 更新后"卡死"）
+import argparse
+_parser = argparse.ArgumentParser()
+_parser.add_argument("--after-update", action="store_true", help="自更新后重启时跳过互斥锁检查")
+_parsed_args, _remaining_argv = _parser.parse_known_args()
+
 UPDATE_STATE_PATH = os.path.join(ROOT_DIR, "config", "update_state.json")
 # 更新源：默认指向 GitHub 仓库 main 分支的 update.json（由 Actions 自动推回 main）。
 # 国内访问慢，客户端下载会套 gh-proxy 前缀；也可用 config/update_url.json 覆盖。
@@ -277,7 +286,6 @@ def _download_bytes(url, dest_path, timeout=60):
 
 
 def _sha256_of(path):
-    import hashlib
     h = hashlib.sha256()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
@@ -311,7 +319,6 @@ def _download_with_fallback(zip_url, dest_path, timeout=60):
 
 def _spare_exe_name():
     """更新中转文件名（exe 同级目录，可写）。"""
-    base = os.path.basename(sys.executable) if getattr(sys, "frozen", False) else "board_new.exe"
     return "board_update_new.exe"
 
 
@@ -368,19 +375,11 @@ def do_self_update(new_zip_url, expected_sha):
     os.replace(cur_exe, spare)
     # 2) 新 exe -> 原路径
     shutil.copy2(new_exe, cur_exe)
-    # 3) 启动新进程，再清理中转旧 exe（用新进程继续跑，旧文件此刻可删）
+    # 3) 启动新进程（DETACHED_PROCESS=8 脱离控制台；--after-update 让新进程跳过互斥锁检查）
     print(f"[更新] 已替换到 v（{new_exe}），正在重启…")
-    try:
-        os.startfile(cur_exe)     # Windows：启动新 exe（独立进程）
-    except Exception:
-        # 兜底：用 subprocess 启动
-        import subprocess
-        subprocess.Popen([cur_exe])
-    # 4) 删除旧 exe（中转名），避免下次再被替换回来
-    try:
-        os.remove(spare)
-    except Exception:
-        pass
+    import subprocess
+    subprocess.Popen([cur_exe, "--after-update"],
+                     creationflags=8)   # CREATE_NEW_CONSOLE 亦可，关键是 detached
     return True
 
 
@@ -422,22 +421,28 @@ def check_for_update_on_startup():
     return need_restart
 
 
-# 开机前检查一次；返回 True 表示已触发替换+重启（下方 mainloop 不会真正跑起来）
+# ---------- 单实例保护（必须在更新检查之前：新进程先拿锁，旧进程才退出）----------
+# 固定 client_id 重复启动会被 Broker 互踢，且旧实例窗口残留在桌面同位置
+# （表现为圆角外露出深色残块、显示旧内容的"重影"），故直接禁止双开。
+# 锁名带班级：同机不同班可并存，同班双开仍被拒。
+# --after-update：自更新重启时旧进程已 CloseHandle + exit，但内核对象残留期间
+# 新进程 CreateMutexW 可能返回 ERROR_ALREADY_EXISTS → 跳过（实际旧进程已不在）。
+_hmutex = windll.kernel32.CreateMutexW(None, False, f"hs-poc-board-{CLASS_ID}")
+if windll.kernel32.GetLastError() == 183 and not _parsed_args.after_update:
+    print("[启动] 留言板已在运行，本实例退出（请勿重复开启）")
+    sys.exit(1)
+
+# ---------- 开机前自动更新（教室端 exe 自动替换 + 重启）----------
 _UPDATE_TRIGGERED = False
 if os.environ.get("HSBOARD_DEMO_STATE") not in ("1", "bottom"):
     _UPDATE_TRIGGERED = check_for_update_on_startup()
     if _UPDATE_TRIGGERED:
         print("[更新] 自替换完成，即将重启进入新版")
         evt("UPDATE", f"自替换完成并触发重启 本地={VERSION}")
-
-# ---------- 单实例保护 ----------
-# 固定 client_id 重复启动会被 Broker 互踢，且旧实例窗口残留在桌面同位置
-# （表现为圆角外露出深色残块、显示旧内容的"重影"），故直接禁止双开。
-# 锁名带班级：同机不同班可并存，同班双开仍被拒。
-_hmutex = windll.kernel32.CreateMutexW(None, False, f"hs-poc-board-{CLASS_ID}")
-if windll.kernel32.GetLastError() == 183:          # ERROR_ALREADY_EXISTS
-    print("[启动] 留言板已在运行，本实例退出（请勿重复开启）")
-    sys.exit(1)
+        # 释放互斥锁 + 退出旧进程，让新版进程拿到锁
+        windll.kernel32.ReleaseMutex(_hmutex)
+        windll.kernel32.CloseHandle(_hmutex)
+        sys.exit(0)
 
 if os.environ.get("HSBOARD_DEMO_STATE") in ("1", "bottom"):
     # 本地演示数据（布局/界面自动化验证用）：不连 Broker、不收发消息。
