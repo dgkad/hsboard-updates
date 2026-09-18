@@ -482,6 +482,13 @@
         } catch (e) {}
         return;
       }
+      // 教室端通知（notice）：ack 通道携带 type=notice 的文本提示 → 顶部横幅
+      if (topic.indexOf(ACK_PRE) === 0) {
+        try {
+          var nt = JSON.parse(payload.toString());
+          if (nt && nt.type === "notice" && nt.text) { handleNotice(nt.text); return; }
+        } catch (e) {}
+      }
       try {
         var ack = JSON.parse(payload.toString());
         var ids = ack.msgIds || (ack.msgId ? [ack.msgId] : []);   // 累计已读列表（兼容旧版单条）
@@ -794,7 +801,8 @@
   // R2: 密码问答（服务端校验：教室端校验后回执 pwack/{cid}；本页面不存任何规则）
   var _pwPending = null;                            // {topic, timer}
   function showPasswordPage() {
-    if (!client || !client.connected) { alert('请先进入留言板（需教室端在线）'); return; }
+    if (!client) { alert('请先在本页选择孩子并进入留言板，再长按此图标'); return; }
+    if (!client.connected) { alert('正在连接教室端，请等顶部显示"已连接"后再长按此图标'); return; }
     const password = prompt('请输入访问密码');
     if (!password) return;
     const cid = getDeviceId();
@@ -810,7 +818,7 @@
       settled = true;
       try { client.unsubscribe(ackTopic); } catch (e) {}
       _pwPending = null;
-      alert('校验超时：教室端未连接或版本过旧');
+      alert('教室端没有回应：请确认教室电脑上的留言板已联网在线，且已升级到最新版本');
     }, 8000);
     _pwPending = { topic: ackTopic, timer: timer };
     client.subscribe(ackTopic, function () {
@@ -941,19 +949,6 @@
       $("text").value = "";
     });
   }
-
-  // 监听 notice 消息
-  client.on('message', function (topic, message) {
-    if (topic.startsWith(ACK_PREFIX)) {
-      try {
-        const data = JSON.parse(message.toString());
-        if (data.type === 'notice') {
-          handleNotice(data.text);
-        }
-      } catch (e) {}
-    }
-    // 原有的消息处理逻辑...
-  });
 
   $("btnEnter").addEventListener("click", enter);
   $("btnSend").addEventListener("click", send);
