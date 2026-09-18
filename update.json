@@ -1,9 +1,9 @@
 {
-  "version": "1.0.14",
+  "version": "1.0.15",
   "channel": "stable",
-  "published_at": "2026-09-18T14:41:44Z",
-  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.14/board_v1.0.14.zip",
-  "sha256": "5fcc7f98a1f66050eef8f3ed7e30e2d86b259e20b06800df2ee46234cb7e10b8",
-  "changelog": "v1.0.14 - 全部累积修复（冲突检测心跳/留言线程崩溃/自更新完整替换/自动隐藏横幅）；本版为单文件兼容构建，1.0.8 老版本可直接自动升级，无需人工干预",
+  "published_at": "2026-09-18T15:41:32Z",
+  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.15/board_v1.0.15.zip",
+  "sha256": "7370ca13c61f9cfd18663fd3e731f302a24a2d62221bd273e1f798b2d0ef7984",
+  "changelog": "自动发布",
   "self_url": "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
 }
