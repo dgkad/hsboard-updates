@@ -68,7 +68,7 @@ UPDATE_URL = "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/updat
 # R7: 下载加速（国内可达）：使用 gh-proxy v6 格式
 GH_PROXY_PREFIX = "https://v6.gh-proxy.org/"
 # R7: 家长端站点三源冗余（用于静态站部署场景）
-PARENT_SITE_URL = "https://dgkad.github.io/hsboard-updates"
+PARENT_SITE_URL = "https://liuyan.dengjy.xyz"
 # 仓库已改为公开：无需 token 认证，gh-proxy 前缀即可下载。
 
 
