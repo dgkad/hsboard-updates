@@ -1,8 +1,9 @@
 {
   "_ver": 2,
+  "kv": 3,
   "host": "LUB0XlAQAnkcUV5XDxsmXjEHBBweKFdeHFNMCTAALkECHA==",
   "mqtt_port": "cEt6XA==",
   "wss_url": "PwAxVU5dAXMEAQNUR0FmEi4OTxEKbUFYV1hbEC0dbAoMAxwzXh5RWBtAeEt2QAwDEDQ=",
   "username": "IABvDQ4TFiQ=",
-  "password": "AAB6BDBAExIfXWhOFQ4cAw4="
+  "password": "CwEmAzQtBRRKZAYASSsCSwkJKxweFVh+"
 }
