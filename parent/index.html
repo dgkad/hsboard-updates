@@ -173,8 +173,23 @@
 <script src="./mqtt.min.js"></script>
 <script>
   var $ = function (id) { return document.getElementById(id); };
-  var URL_ = "wss://e3611bf9.ala.cn-shenzhen.emqxsl.cn:8084/mqtt";   // EMQX Cloud Serverless（TLS）
-  var MQTT_USER_ = "hs-board", MQTT_PASS_ = "Hs8kQ2wR-mZx4vTpL";     // 认证账号（与 config/broker.json 一致）
+  // 凭据混淆 v2（与教室端 config/broker.json 同款 XOR+base64；源码不含明文凭据）
+  var _BK = "HsBoard@2026!x";
+  function _brDec(b64) {
+    var raw = atob(b64), out = "";
+    for (var i = 0; i < raw.length; i++)
+      out += String.fromCharCode(raw.charCodeAt(i) ^ _BK.charCodeAt(i % _BK.length));
+    return decodeURIComponent(escape(out));
+  }
+  var _CRED = {
+    host: "LUB0XlAQAnkcUV5XDxsmXjEHBBweKFdeHFNMCTAALkECHA==",
+    port: "cEt6XA==",
+    wss: "PwAxVU5dAXMEAQNUR0FmEi4OTxEKbUFYV1hbEC0dbAoMAxwzXh5RWBtAeEt2QAwDEDQ=",
+    username: "IABvDQ4TFiQ=",
+    password: "CwEmAzQtBRRKZAYASSsCSwkJKxweFVh+"
+  };
+  var URL_ = _brDec(_CRED.wss);                     // EMQX Cloud Serverless（TLS）
+  var MQTT_USER_ = _brDec(_CRED.username), MQTT_PASS_ = _brDec(_CRED.password);
   var HS_PRE = "hsdemo/c8/";                      // 班级段前缀（登录页选班后更新，enter() 再固化）
   var MSG_PRE = HS_PRE + "msg/";                  // 家长/老师 -> 教室
   var ACK_PRE = HS_PRE + "ack/";                  // 教室 -> 家长（已读回执，retained）
@@ -416,6 +431,10 @@
       try { client.end(true); } catch (e) {}
       client = null;
     }
+    if (_pwPending) {                               // 换班重连：丢弃未完成的密码问答
+      clearTimeout(_pwPending.timer);
+      _pwPending = null;
+    }
 
     client = mqtt.connect(URL_, {
     clientId: (role === "parent" ? "p-" + sid.slice(-6) : "t-x")
@@ -437,6 +456,7 @@
     client.on("reconnect", function () { setStatus("重连中…", false); });
     client.on("close", function () { if (!client.connected) setStatus("已断开", false); });
     client.on("message", function (topic, payload) {
+      if (_pwPending && topic === _pwPending.topic) { handlePwAck(payload); return; }
       if (topic.indexOf(HIST_PRE) === 0) {          // 服务端历史：合并本地与服务器，双端一致
         try {
           var arr = JSON.parse(payload.toString());
@@ -771,19 +791,43 @@
     });
   }
 
-  // R2: 显示密码页（提示语与校验均不泄露规则；知情者按约定输入）
+  // R2: 密码问答（服务端校验：教室端校验后回执 pwack/{cid}；本页面不存任何规则）
+  var _pwPending = null;                            // {topic, timer}
   function showPasswordPage() {
+    if (!client || !client.connected) { alert('请先进入留言板（需教室端在线）'); return; }
     const password = prompt('请输入访问密码');
-    if (password) {
-      const today = new Date();
-      const expectedPassword = `${today.getFullYear()}${today.getMonth() + 1}${today.getDate()}${atob('amlhamlh')}`;
-
-      if (password === expectedPassword) {
-        showEmailPage();
-      } else {
-        alert('密码错误，请重试');
-      }
+    if (!password) return;
+    const cid = getDeviceId();
+    const ackTopic = HS_PRE + 'pwack/' + cid;
+    if (_pwPending) {                               // 上次问答未完成：清理
+      try { client.unsubscribe(_pwPending.topic); } catch (e) {}
+      clearTimeout(_pwPending.timer);
+      _pwPending = null;
     }
+    let settled = false;
+    const timer = setTimeout(function () {          // 教室端离线/旧版本不回执 -> 超时提示
+      if (settled) return;
+      settled = true;
+      try { client.unsubscribe(ackTopic); } catch (e) {}
+      _pwPending = null;
+      alert('校验超时：教室端未连接或版本过旧');
+    }, 8000);
+    _pwPending = { topic: ackTopic, timer: timer };
+    client.subscribe(ackTopic, function () {
+      client.publish(HS_PRE + 'pwcheck',
+                     JSON.stringify({ cid: cid, input: password, ts: Date.now() }), { qos: 1 });
+    });
+  }
+
+  function handlePwAck(payload) {                   // 教室端回执 -> 放行/拒绝
+    if (!_pwPending) return;
+    var ok = false, d = null;
+    try { d = JSON.parse(payload.toString()); ok = !!(d && d.ok); } catch (e) {}
+    try { client.unsubscribe(_pwPending.topic); } catch (e) {}
+    clearTimeout(_pwPending.timer);
+    _pwPending = null;
+    if (ok) showEmailPage();
+    else alert('密码错误，请重试');
   }
 
   // R2: 显示邮件页
