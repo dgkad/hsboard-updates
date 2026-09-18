@@ -1,9 +1,9 @@
 {
-  "version": "1.0.8",
+  "version": "1.0.9",
   "channel": "stable",
-  "published_at": "2026-09-13T00:25:07Z",
-  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.8/board_v1.0.8.zip",
-  "sha256": "c2484a6f6e95d0815b58d9907f4409ed9bebd45692bcff376ad0732de34febdb",
-  "changelog": "修复：拖拽缩放扩出区域露深色矩形；修复拖大高度被自适应回收；拖拽中底图实时拉伸、松手后清晰重采样",
+  "published_at": "2026-09-18T13:04:10Z",
+  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.9/board_v1.0.9.zip",
+  "sha256": "509beb0aea5e46f2755ee74a58c424917956c1a9b3a09b0171b79120047d6822",
+  "changelog": "v1.0.9 - 防熊孩子加固 + 家长端体验升级 + 更新链路冗余 + 新增高一(1)班",
   "self_url": "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
 }

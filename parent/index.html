@@ -11,8 +11,15 @@
   body {
     font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
     background: #ededed; display: flex; flex-direction: column;
+    height: 100vh; /* 确保 body 占满视口高度 */
   }
   .hidden { display: none !important; }
+
+  /* R6 通知栏：顶部显示测试状态 */
+  #notificationBar {
+    background: #ff4444; color: white; padding: 8px 16px; text-align: center;
+    font-size: 12px; font-weight: 500; display: none; /* 默认隐藏，收到 notice 时显示 */
+  }
 
   /* 登录卡片 */
   #login {
@@ -63,7 +70,7 @@
     font-size: 11px; color: #c0c0c0; max-width: 45%; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap; flex: none;
   }
-  #acList .empty { padding: 14px; text-align: center; color: #999; font-size: 13px; }
+  #acList .empty {
 
   /* 聊天界面 */
   #chat { flex: 1; display: flex; flex-direction: column; }
@@ -91,8 +98,10 @@
   .meta .st.read { color: #1a6e37; font-weight: 600; }
 
   .inputbar {
+    position: fixed; /* R4: 固定在底部 */
+    bottom: 0; left: 0; right: 0; /* R4: 底部对齐，全宽 */
     display: flex; gap: 8px; padding: 10px; background: #f7f7f7;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid #e0e0e0; z-index: 100; /* 确保在最上层 */
   }
   .inputbar input {
     flex: 1; height: 40px; padding: 0 12px; border: 1px solid #ddd;
@@ -109,6 +118,11 @@
 </style>
 </head>
 <body>
+
+<!-- R6 通知栏：顶部显示测试状态 -->
+<div id="notificationBar">
+  🚨 系统仍在测试中，有任何问题可以联系邮箱 dgkad_vip@163.com
+</div>
 
 <div id="login">
   <h1>班级留言板</h1>
@@ -135,16 +149,22 @@
 </div>
 
 <div id="chat" class="hidden">
-  <header>
-    <span class="dot off" id="dot"></span><span id="status">连接中…</span>
-    <span id="who"></span><a id="hdrGuide" href="guide.html" target="_blank">指南</a>
-  </header>
-  <div id="list"></div>
-  <div class="inputbar">
-    <input id="text" placeholder="给孩子留言…" maxlength="140">
-    <button id="btnSend">发送</button>
+    <header>
+      <span class="dot off" id="dot"></span><span id="status">连接中…</span>
+      <span id="who"></span><a id="hdrGuide" href="guide.html" target="_blank">指南</a>
+    </header>
+    <div id="list"></div>
+    <!-- R2 GitHub 图标 -->
+    <div id="githubIcon" style="position: fixed; bottom: 70px; right: 16px; width: 40px; height: 40px; cursor: pointer; z-index: 99;">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z" fill="#333"/>
+      </svg>
+    </div>
+    <div class="inputbar">
+      <input id="text" placeholder="给孩子留言…" maxlength="140">
+      <button id="btnSend">发送</button>
+    </div>
   </div>
-</div>
 
 <script src="./mqtt.min.js"></script>
 <script>
@@ -658,6 +678,233 @@
       try { client.reconnect(); } catch (e) {}
       setStatus("重连中…", false);
     }
+  });
+
+  // R3: 生成并持久 device ID
+  function getDeviceId() {
+    let deviceId = localStorage.getItem('HS_DEVICE');
+    if (!deviceId) {
+      // 生成 UUID v4
+      deviceId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+      localStorage.setItem('HS_DEVICE', deviceId);
+    }
+    return deviceId;
+  }
+
+  // R3: 本地限流检查
+  const RATE_LIMIT_WINDOW = 60; // 60秒
+  const RATE_LIMIT_COUNT = 5;   // 最多5条
+  const identityMessages = new Map(); // sid -> timestamps
+
+  function checkRateLimit(identity) {
+    const now = Date.now();
+    const timestamps = identityMessages.get(identity) || [];
+    
+    // 清理过期的时间戳
+    const validTimestamps = timestamps.filter(ts => now - ts < RATE_LIMIT_WINDOW * 1000);
+    identityMessages.set(identity, validTimestamps);
+    
+    if (validTimestamps.length >= RATE_LIMIT_COUNT) {
+      return false; // 超出限制
+    }
+    
+    validTimestamps.push(now);
+    identityMessages.set(identity, validTimestamps);
+    return true; // 允许发送
+  }
+
+  // R3: 获取倒计时文本
+  function getRateLimitCountdown(identity) {
+    const timestamps = identityMessages.get(identity) || [];
+    if (timestamps.length < RATE_LIMIT_COUNT) return '';
+    
+    const oldest = timestamps[0];
+    const now = Date.now();
+    const remaining = Math.ceil((RATE_LIMIT_WINDOW * 1000 - (now - oldest)) / 1000);
+    
+    return remaining > 0 ? `请等待 ${remaining} 秒` : '';
+  }
+
+  // R2: GitHub 图标长按功能
+  let pressTimer = null;
+  const githubIcon = document.getElementById('githubIcon');
+  
+  if (githubIcon) {
+    // 单击：跳转到 GitHub 仓库
+    githubIcon.addEventListener('click', function(e) {
+      e.preventDefault();
+      window.open('https://github.com/dgkad/hsboard-updates', '_blank');
+    });
+
+    // 长按：800ms 进入密码页
+    githubIcon.addEventListener('mousedown', function(e) {
+      pressTimer = setTimeout(function() {
+        showPasswordPage();
+      }, 800);
+    });
+
+    githubIcon.addEventListener('mouseup', function() {
+      clearTimeout(pressTimer);
+    });
+
+    githubIcon.addEventListener('mouseleave', function() {
+      clearTimeout(pressTimer);
+    });
+
+    // 触摸事件支持
+    githubIcon.addEventListener('touchstart', function(e) {
+      pressTimer = setTimeout(function() {
+        showPasswordPage();
+      }, 800);
+    });
+
+    githubIcon.addEventListener('touchend', function() {
+      clearTimeout(pressTimer);
+    });
+  }
+
+  // R2: 显示密码页
+  function showPasswordPage() {
+    const password = prompt('请输入访问密码（格式：年月日jiajia，如：2026913jiajia）');
+    if (password) {
+      const today = new Date();
+      const expectedPassword = `${today.getFullYear()}${today.getMonth() + 1}${today.getDate()}jiajia`;
+      
+      if (password === expectedPassword) {
+        showEmailPage();
+      } else {
+        alert('密码错误，请重试');
+      }
+    }
+  }
+
+  // R2: 显示邮件页
+  function showEmailPage() {
+    const emailHtml = `
+      <div style="max-width: 400px; margin: 50px auto; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+        <h2 style="margin-bottom: 20px; color: #333;">发送邮件</h2>
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 500;">收件人：</label>
+          <input type="email" id="emailTo" value="dgkad_vip@163.com" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 500;">主题：</label>
+          <input type="text" id="emailSubject" placeholder="请输入邮件主题" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 500;">内容：</label>
+          <textarea id="emailBody" rows="6" placeholder="请输入邮件内容" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+        </div>
+        <button onclick="sendEmail()" style="width: 100%; padding: 10px; background: #07c160; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer;">发送邮件</button>
+        <button onclick="closeEmailPage()" style="width: 100%; padding: 10px; margin-top: 10px; background: #f0f0f0; color: #333; border: none; border-radius: 4px; cursor: pointer;">关闭</button>
+      </div>
+    `;
+    
+    document.body.innerHTML = emailHtml;
+    
+    // 添加 EmailJS SDK
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
+    script.onload = function() {
+      emailjs.init('YOUR_PUBLIC_KEY'); // 这里需要替换为实际的 EmailJS 公钥
+    };
+    document.head.appendChild(script);
+  }
+
+  // R2: 发送邮件
+  function sendEmail() {
+    const to = document.getElementById('emailTo').value;
+    const subject = document.getElementById('emailSubject').value;
+    const body = document.getElementById('emailBody').value;
+    
+    if (!subject || !body) {
+      alert('请填写完整的邮件信息');
+      return;
+    }
+    
+    // 这里应该调用 EmailJS 发送邮件
+    alert('邮件发送功能需要配置 EmailJS 服务');
+  }
+
+  // R2: 关闭邮件页
+  function closeEmailPage() {
+    location.reload();
+  }
+
+  // R7: 处理教室端发送的 notice
+  function handleNotice(noticeText) {
+    const notificationBar = document.getElementById('notificationBar');
+    if (notificationBar) {
+      notificationBar.textContent = `🚨 ${noticeText}`;
+      notificationBar.style.display = 'block';
+      
+      // 5秒后自动隐藏
+      setTimeout(() => {
+        notificationBar.style.display = 'none';
+      }, 5000);
+    }
+  }
+
+  // 修改发送函数，加入限流检查
+  function send() {
+    const text = $("text").value.trim();
+    if (!text || sending) return;
+    
+    // R3: 限流检查
+    const canSend = checkRateLimit(sid || 'teacher');
+    if (!canSend) {
+      const countdown = getRateLimitCountdown(sid || 'teacher');
+      alert(countdown || '发送过于频繁，请稍后再试');
+      return;
+    }
+    
+    // 原有的发送逻辑...
+    sending = true;
+    $("btnSend").disabled = true;
+    
+    const msg = {
+      msgId: newMsgId(),
+      text: text,
+      ts: Date.now(),
+      role: role,
+      name: role === "teacher" ? tname : ROSTER.find(s => s.id === sid)?.name || sid,
+      device: getDeviceId() // R3: 添加 device 字段
+    };
+    
+    if (role === "teacher") {
+      msg.teacher = true;
+      msg.horn = tmode === "horn";
+    }
+    
+    client.publish(MSG_PRE + (role === "teacher" ? "t-" + tname : sid), JSON.stringify(msg), { qos: 1 }, function (err) {
+      $("btnSend").disabled = false;
+      sending = false;
+      if (err) { 
+        $("text").value = "";
+        return; 
+      }
+      var item = addBubble(msg, msg.horn);
+      saveHist({ msgId: msg.msgId, text: text, ts: msg.ts, horn: msg.horn, read: false });
+      publishHist();                                  // 历史同步到服务器（retained）——换设备不丢
+      $("text").value = "";
+    });
+  }
+
+  // 监听 notice 消息
+  client.on('message', function (topic, message) {
+    if (topic.startsWith(ACK_PREFIX)) {
+      try {
+        const data = JSON.parse(message.toString());
+        if (data.type === 'notice') {
+          handleNotice(data.text);
+        }
+      } catch (e) {}
+    }
+    // 原有的消息处理逻辑...
   });
 
   $("btnEnter").addEventListener("click", enter);

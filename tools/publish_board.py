@@ -143,10 +143,20 @@ def main():
         json.dump(update_json, f, ensure_ascii=False, indent=2)
     print(f"[update.json] 已生成 {out_json}")
 
+    # R7: 同步 update.json 到家长端站点（三源冗余）
+    parent_web_dir = os.path.join(base, "parent-web")
+    if os.path.isdir(parent_web_dir):
+        parent_update_json = os.path.join(parent_web_dir, "update.json")
+        shutil.copy2(out_json, parent_update_json)
+        print(f"[R7 三源冗余] 已同步 update.json 到家长端站点: {parent_update_json}")
+    else:
+        print(f"[警告] 找不到家长端目录: {parent_web_dir}，跳过 R7 三源同步")
+
     print("\n=== 下一步（人工）===")
     print(f"1. 上传 zip 附件：{zip_path}  ->  GitHub Release tag v{args.version}")
     print(f"2. 推送 update.json 到 {args.owner}/{args.repo} main 分支")
     print(f"3. 教室端开机拉 {update_json['self_url']} 自动比版本 -> 下载 -> 替换 -> 重启")
+    print(f"4. 家长端站点同步: {parent_update_json}（R7 三源冗余源3）")
     print("\n建议把这段写进 GitHub Actions（push 到 main 且带 release 标签时自动发包），")
     print("或本地每次手动跑本脚本 + gh 上传，见 tools/publish_board_workflow.yml 示例。")
     print(f"   gh release create v{args.version} {zip_path} -t '教室端更新 v{args.version}' "
