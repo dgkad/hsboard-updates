@@ -52,7 +52,7 @@ CONFIG_PATH = os.path.join(ROOT_DIR, "config", "students.json")
 # 教室端是装在碰不到的教室电脑上的桌面 exe，无法像网页那样"重新上传即升级"。
 # 故做全自动更新：每次开机先拉 update.json（GitHub 仓库），比对版本号，有新版则
 # 下载 release zip、校验 sha256、自替换 exe、重启。config/*.json 不随更新覆盖，班级配置保留。
-VERSION = "1.0.15"
+VERSION = "1.0.16"
 
 # --after-update：自更新重启时传入，跳过互斥锁检查（旧进程已释放锁，但内核对象残留
 # 会导致新进程 CreateMutexW 返回 ERROR_ALREADY_EXISTS 而 exit（1）= 更新后"卡死"）
@@ -797,7 +797,10 @@ def _notice_payload(teacher, text):
 
 
 # R1: Presence 心跳（冲突检测）
-PRESENCE_CID = os.environ.get("HSBOARD_CLIENT_ID", f"hs-board-{CLASS_ID}")   # 实例标识，与下方 mqtt.Client 的 client_id 同源
+# PRESENCE_CID 必须每实例唯一：同班两台若同 id，EMQX 会按 MQTT 规则互踢（连接每秒循环断开），
+# 且 presence topic/payload 也无法区分实例。默认在班级级 id 后加 4 位随机后缀；
+# 环境变量 HSBOARD_CLIENT_ID 仍可强制指定（指定后同班多实例互踢自负）。
+PRESENCE_CID = os.environ.get("HSBOARD_CLIENT_ID") or f"hs-board-{CLASS_ID}-{os.urandom(2).hex()}"
 
 def _send_presence():
     """R1: 发送 presence 心跳（每20秒），检测同班级的其他实例。"""
@@ -988,7 +991,8 @@ def on_message(client, userdata, msg):
             remote_cid = data.get("cid") or data.get("client_id", "")
             remote_ts = data.get("ts") or data.get("timestamp", 0)
             # 如果不是我自己的 presence，且时间戳较新（30秒内），则显示冲突
-            if remote_cid != client_id and remote_ts > (time.time() - 30):
+            # （PRESENCE_CID 每实例唯一：同班两台 cid 不同 → 正确触发横幅）
+            if remote_cid and remote_cid != PRESENCE_CID and remote_ts > (time.time() - 30):
                 if not _conflict_show[0]:
                     print(f"[冲突] 检测到另一实例：{remote_cid}（ts={remote_ts}）")
                     _conflict_show[0] = True
