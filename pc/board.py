@@ -52,7 +52,7 @@ CONFIG_PATH = os.path.join(ROOT_DIR, "config", "students.json")
 # 教室端是装在碰不到的教室电脑上的桌面 exe，无法像网页那样"重新上传即升级"。
 # 故做全自动更新：每次开机先拉 update.json（GitHub 仓库），比对版本号，有新版则
 # 下载 release zip、校验 sha256、自替换 exe、重启。config/*.json 不随更新覆盖，班级配置保留。
-VERSION = "1.0.11"
+VERSION = "1.0.12"
 
 # --after-update：自更新重启时传入，跳过互斥锁检查（旧进程已释放锁，但内核对象残留
 # 会导致新进程 CreateMutexW 返回 ERROR_ALREADY_EXISTS 而 exit（1）= 更新后"卡死"）
@@ -514,20 +514,55 @@ def do_self_update(new_zip_url, expected_sha):
         return False
 
     cur_exe = os.path.abspath(sys.executable)
+    new_bundle = os.path.dirname(new_exe)          # 新包根目录（exe 与 _internal 同级）
     spare = os.path.join(ROOT_DIR, _spare_exe_name())
+    old_internal = os.path.join(ROOT_DIR, "_internal")
+    stale_internal = os.path.join(ROOT_DIR, "_internal_old")
+
+    # 0) 清理上次更新遗留（旧进程退出后这些才删得掉；删不掉不影响本次更新）
+    if os.path.isdir(stale_internal):
+        shutil.rmtree(stale_internal, ignore_errors=True)
+
     # 1) 旧 exe -> 中转名（腾出原路径）
     if os.path.exists(spare):
         os.remove(spare)
     os.replace(cur_exe, spare)
-    # 2) 新 exe -> 原路径
+    # 2) 新 exe + _internal 整体替换。只换 exe 会在跨 Python 版本更新时崩：
+    #    新 bootloader 在 _internal 里找 python3xx.dll，旧目录里是旧版本的 DLL
+    #    （1.0.9->1.0.11 实测报"Failed to load Python DLL ...python311.dll"）。
     try:
         shutil.copy2(new_exe, cur_exe)
+        new_internal = os.path.join(new_bundle, "_internal")
+        if os.path.isdir(new_internal):
+            if os.path.isdir(old_internal):
+                # 当前进程的旧 DLL 已加载进内存：改名通常可行，删除可能被锁
+                try:
+                    os.replace(old_internal, stale_internal)
+                except OSError:
+                    shutil.rmtree(old_internal, ignore_errors=True)
+                    if os.path.isdir(old_internal):
+                        raise OSError("旧 _internal 被占用且无法删除")
+            shutil.copytree(new_internal, old_internal)
     except Exception:
-        # 回滚：把旧 exe 放回去
-        os.replace(spare, cur_exe)
-        print(f"[更新] 复制新 exe 失败，已回滚到旧版")
+        # 回滚：新 exe/_internal 作废，旧 exe 放回去
+        try:
+            shutil.rmtree(old_internal, ignore_errors=True)
+        except Exception:
+            pass
+        if os.path.isdir(stale_internal) and not os.path.isdir(old_internal):
+            try:
+                os.replace(stale_internal, old_internal)
+            except Exception:
+                pass
+        try:
+            if os.path.exists(cur_exe):
+                os.remove(cur_exe)
+            os.replace(spare, cur_exe)
+        except Exception:
+            pass
+        print("[更新] 复制新文件失败，已回滚到旧版")
         return False
-    # 3) 清理中转旧 exe
+    # 3) 清理中转旧 exe（_internal_old 由下次更新清理——本进程仍占用旧 DLL，现在删不掉）
     try:
         os.remove(spare)
     except Exception:
