@@ -1,9 +1,7 @@
 {
   "version": "1.0.15",
-  "channel": "stable",
-  "published_at": "2026-09-18T15:41:32Z",
-  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.15/board_v1.0.15.zip",
-  "sha256": "7370ca13c61f9cfd18663fd3e731f302a24a2d62221bd273e1f798b2d0ef7984",
-  "changelog": "自动发布",
-  "self_url": "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
+  "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.15/board_v1.0.15.zip",
+  "sha256": "12715f0d8fcc9397738457ea516224f44badbe026b1fd73212c750e683223599",
+  "notes": "v1.0.15 - 安全加固：管理入口密码改为教室端在线校验（连错5次锁定10分钟）；MQTT 连接凭据轮换（教室端自动迁移）；修复 onefile 构建缺 --noconsole",
+  "released_at": "2026-09-18"
 }
