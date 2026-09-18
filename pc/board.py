@@ -52,7 +52,7 @@ CONFIG_PATH = os.path.join(ROOT_DIR, "config", "students.json")
 # 教室端是装在碰不到的教室电脑上的桌面 exe，无法像网页那样"重新上传即升级"。
 # 故做全自动更新：每次开机先拉 update.json（GitHub 仓库），比对版本号，有新版则
 # 下载 release zip、校验 sha256、自替换 exe、重启。config/*.json 不随更新覆盖，班级配置保留。
-VERSION = "1.0.10"
+VERSION = "1.0.11"
 
 # --after-update：自更新重启时传入，跳过互斥锁检查（旧进程已释放锁，但内核对象残留
 # 会导致新进程 CreateMutexW 返回 ERROR_ALREADY_EXISTS 而 exit（1）= 更新后"卡死"）
@@ -735,13 +735,15 @@ def _notice_payload(teacher, text):
 
 
 # R1: Presence 心跳（冲突检测）
+PRESENCE_CID = os.environ.get("HSBOARD_CLIENT_ID", f"hs-board-{CLASS_ID}")   # 实例标识，与下方 mqtt.Client 的 client_id 同源
+
 def _send_presence():
     """R1: 发送 presence 心跳（每20秒），检测同班级的其他实例。"""
     try:
         ts = int(time.time())
-        payload = json.dumps({"cid": client_id, "ts": ts}, ensure_ascii=False)
+        payload = json.dumps({"cid": PRESENCE_CID, "ts": ts}, ensure_ascii=False)
         # 使用 client_id 作为主题后缀，每个实例一个主题
-        topic = PRESENCE_PREFIX + client_id
+        topic = PRESENCE_PREFIX + PRESENCE_CID
         client.publish(topic, payload, qos=1, retain=True)
         _my_presence_ts[0] = ts
     except Exception as e:
@@ -966,7 +968,8 @@ def on_message(client, userdata, msg):
         return
     if len(seen) > 20000:                         # 去重集防膨胀（熊孩子狂发场景）
         seen.clear()
-    
+
+    sid = msg.topic[len(MSG_PREFIX):]             # 先取 sid：R3 限流检查依赖它（此前放在限流之后曾致 UnboundLocalError 崩掉 MQTT 线程）
     # R3: 限流检查
     if device_id:  # 只有设备 ID 可用时才进行限流检查
         allowed, reason, should_block = _check_rate_limit(sid)
@@ -974,8 +977,7 @@ def on_message(client, userdata, msg):
             print(f"[限流] 消息被拒绝：{reason}")
             # 可以在这里添加 UI 提示，比如在控制台显示或记录日志
             return
-    
-    sid = msg.topic[len(MSG_PREFIX):]
+
     mid = _clean_str(data.get("msgId") or "", 64)
     if not mid or mid in seen:
         return
@@ -1039,7 +1041,7 @@ def on_message(client, userdata, msg):
 # 注意：同一 client_id 同时只能有一个连接（互踢），不要开两个实例。
 client = mqtt.Client(
     mqtt.CallbackAPIVersion.VERSION2,
-    client_id=os.environ.get("HSBOARD_CLIENT_ID", f"hs-board-{CLASS_ID}"),   # 每班独立（≤23 字符），三台白板可同时在线
+    client_id=PRESENCE_CID,   # 每班独立（≤23 字符），三台白板可同时在线；_send_presence 用同一标识
     clean_session=False,
 )
 client.tls_set()                                   # EMQX Cloud 证书为公共可信 CA，系统信任库即可校验
