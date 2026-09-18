@@ -62,6 +62,7 @@ jobs:
           fi
 
       - name: PyInstaller 打包
+        shell: bash
         run: |
           pyinstaller 班级留言板.spec
           echo "dist/班级留言板" ; ls -1 dist/班级留言板
