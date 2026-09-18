@@ -52,7 +52,7 @@ CONFIG_PATH = os.path.join(ROOT_DIR, "config", "students.json")
 # 教室端是装在碰不到的教室电脑上的桌面 exe，无法像网页那样"重新上传即升级"。
 # 故做全自动更新：每次开机先拉 update.json（GitHub 仓库），比对版本号，有新版则
 # 下载 release zip、校验 sha256、自替换 exe、重启。config/*.json 不随更新覆盖，班级配置保留。
-VERSION = "1.0.13"
+VERSION = "1.0.15"
 
 # --after-update：自更新重启时传入，跳过互斥锁检查（旧进程已释放锁，但内核对象残留
 # 会导致新进程 CreateMutexW 返回 ERROR_ALREADY_EXISTS 而 exit（1）= 更新后"卡死"）
@@ -141,8 +141,30 @@ def _bro_field(v, key):
     return x
 
 
-with open(os.path.join(ROOT_DIR, "config", "broker.json"), "r", encoding="utf-8") as f:
+# 凭据版本迁移（kv）：新版本内置最新凭据密文，config 里 kv 低于内置版本时自动覆盖
+# （密码轮换兼容 exe-only 更新的老部署：老机器换 exe 后首次启动即拿到新凭据）。
+# config/broker.json 里加 "custom": true 可跳过迁移（高级用户自定义 broker 用）。
+_BUILTIN_BROKER_KV = 3
+_BUILTIN_BROKER = {
+    "host": "LUB0XlAQAnkcUV5XDxsmXjEHBBweKFdeHFNMCTAALkECHA==",
+    "mqtt_port": "cEt6XA==",
+    "wss_url": "PwAxVU5dAXMEAQNUR0FmEi4OTxEKbUFYV1hbEC0dbAoMAxwzXh5RWBtAeEt2QAwDEDQ=",
+    "username": "IABvDQ4TFiQ=",
+    "password": "CwEmAzQtBRRKZAYASSsCSwkJKxweFVh+",
+}
+_BROKER_PATH = os.path.join(ROOT_DIR, "config", "broker.json")
+with open(_BROKER_PATH, "r", encoding="utf-8") as f:
     _broker = json.load(f)
+if _broker.get("custom") is not True and int(_broker.get("kv") or 0) < _BUILTIN_BROKER_KV:
+    try:
+        _broker = dict(_BUILTIN_BROKER)
+        _broker["_ver"] = 2
+        _broker["kv"] = _BUILTIN_BROKER_KV
+        with open(_BROKER_PATH, "w", encoding="utf-8") as f:
+            json.dump(_broker, f, ensure_ascii=False, indent=2)
+        print("[凭据] broker.json 已自动升级至 v3（密码轮换迁移）")
+    except Exception as e:
+        print(f"[凭据] broker.json 迁移失败（沿用文件内旧凭据）: {e}")
 BROKER = _bro_field(_broker, "host") or ""
 PORT = int(_bro_field(_broker, "mqtt_port") or 8883)
 MQTT_USER = _bro_field(_broker, "username") or ""
@@ -268,6 +290,9 @@ ACK_PREFIX = BASE_PRE + "ack/"
 HIST_PREFIX = BASE_PRE + "hist/"
 # R1: Presence 主题用于冲突检测
 PRESENCE_PREFIX = BASE_PRE + "presence/"
+# 管理入口密码问答：家长发 pwcheck（含 cid/input），本端校验后回执 pwack/{cid}
+PW_TOPIC = BASE_PRE + "pwcheck"
+PW_ACK_PREFIX = BASE_PRE + "pwack/"
 
 state = {}                                     # 学号 -> {name, messages, unread}
 for stu in roster["students"]:
@@ -752,6 +777,8 @@ def on_connect(client, userdata, flags, reason_code, properties):
     client.subscribe(ACK_PREFIX + "#", qos=1)    # ack retained 感知：每日零点全量清除用
     # R1: 订阅 presence 主题，用于冲突检测
     client.subscribe(PRESENCE_PREFIX + "#", qos=1)
+    # 管理入口密码问答
+    client.subscribe(PW_TOPIC, qos=1)
     print(f"[订阅] {TOPIC_MSG}，等待家长留言…")
     evt("SUB", f"订阅 TOPIC_MSG={TOPIC_MSG} HIST#{HIST_PREFIX} ACK#{ACK_PREFIX} PRESENCE#{PRESENCE_PREFIX}")
 
@@ -930,6 +957,29 @@ def hide_conflict_banner():
         _conflict_hide_timer[0] = None
         render()
 
+
+# 管理入口密码问答：限频（同 cid 累计错 5 次 -> 拉黑 10 分钟）+ 每日密码校验。
+# 密码规则不在页面/源码明文出现（base64 还原），真实校验只发生在教室端。
+_pw_fails = {}                                        # cid -> [错误次数, 拉黑截止 ts]
+_PW_SUFFIX = base64.b64decode("amlhamlh").decode()    # 每日密码后缀（混淆存储）
+
+def _pw_gate_and_check(cid, inp):
+    now = time.time()
+    fails, until = _pw_fails.get(cid, [0, 0])
+    if now < until:
+        return False                                  # 拉黑期内一律拒绝
+    t = time.localtime(now)
+    expected = f"{t.tm_year}{t.tm_mon}{t.tm_mday}{_PW_SUFFIX}"
+    if inp == expected:
+        _pw_fails.pop(cid, None)
+        print(f"[管理] 密码校验通过 cid={cid[:8]}…")
+        return True
+    fails += 1
+    _pw_fails[cid] = [fails, now + 600 if fails >= 5 else 0]
+    print(f"[管理] 密码校验失败 cid={cid[:8]}… 第{fails}次" + ("（已拉黑10分钟）" if fails >= 5 else ""))
+    return False
+
+
 def on_message(client, userdata, msg):
     # R1: 处理 presence 消息（冲突检测）
     if msg.topic.startswith(PRESENCE_PREFIX):
@@ -950,7 +1000,21 @@ def on_message(client, userdata, msg):
         except Exception:
             pass
         return
-    
+
+    # 管理入口密码问答：校验后回执 pwack/{cid}（qos1）
+    if msg.topic == PW_TOPIC:
+        try:
+            data = json.loads(msg.payload.decode("utf-8"))
+            cid = _clean_str(data.get("cid") or "", 64)
+            inp = _clean_str(data.get("input") or "", 64)
+            if cid:
+                ok = _pw_gate_and_check(cid, inp)
+                client.publish(PW_ACK_PREFIX + cid,
+                               json.dumps({"ok": bool(ok), "ts": int(time.time())}), qos=1)
+        except Exception:
+            pass
+        return
+
     if msg.topic.startswith(ACK_PREFIX):
         # 回执是本端发布的；收到推送用于收集通道清单 + 把已回执的 msgId 记入 seen，
         # 这样开机从 hist 快照恢复时会自动跳过"已经处理过（读过）"的消息。
