@@ -112,16 +112,12 @@ jobs:
             dist/board_v${{ steps.ver.outputs.ver }}.zip
 
       - name: 把 update.json 推回 main
+        shell: bash
         run: |
           git config user.name "board-bot"
           git config user.email "board-bot@users.noreply.github.com"
-          # 拉 main 最新，放入 update.json，提交推送
+          # checkout@v4 已持久化 GITHUB_TOKEN 凭据，直接推 main 即可
           BRANCH="main"
-          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
-            BRANCH="main"
-          else
-            git remote set-url origin "${{ secrets.GITHUB_TOKEN }}" "https://x-access-token@github.com/${{ github.repository }}.git"
-          fi
           cp dist/update.json .
           git add update.json
           git commit -m "chore: 更新 update.json 至 v${{ steps.ver.outputs.ver }}" || echo "无改动，跳过提交"
