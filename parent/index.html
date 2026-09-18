@@ -771,13 +771,13 @@
     });
   }
 
-  // R2: 显示密码页
+  // R2: 显示密码页（提示语与校验均不泄露规则；知情者按约定输入）
   function showPasswordPage() {
-    const password = prompt('请输入访问密码（格式：年月日jiajia，如：2026913jiajia）');
+    const password = prompt('请输入访问密码');
     if (password) {
       const today = new Date();
-      const expectedPassword = `${today.getFullYear()}${today.getMonth() + 1}${today.getDate()}jiajia`;
-      
+      const expectedPassword = `${today.getFullYear()}${today.getMonth() + 1}${today.getDate()}${atob('amlhamlh')}`;
+
       if (password === expectedPassword) {
         showEmailPage();
       } else {
