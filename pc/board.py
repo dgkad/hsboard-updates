@@ -52,7 +52,7 @@ CONFIG_PATH = os.path.join(ROOT_DIR, "config", "students.json")
 # 教室端是装在碰不到的教室电脑上的桌面 exe，无法像网页那样"重新上传即升级"。
 # 故做全自动更新：每次开机先拉 update.json（GitHub 仓库），比对版本号，有新版则
 # 下载 release zip、校验 sha256、自替换 exe、重启。config/*.json 不随更新覆盖，班级配置保留。
-VERSION = "1.0.9"
+VERSION = "1.0.10"
 
 # --after-update：自更新重启时传入，跳过互斥锁检查（旧进程已释放锁，但内核对象残留
 # 会导致新进程 CreateMutexW 返回 ERROR_ALREADY_EXISTS 而 exit（1）= 更新后"卡死"）
@@ -275,6 +275,7 @@ for stu in roster["students"]:
 
 # R1: 冲突检测相关全局变量
 _conflict_show = [False]                        # 是否显示冲突横幅
+_conflict_hide_timer = [None]                    # 冲突横幅隐藏定时器
 _my_presence_ts = [0]                           # 我上次发送 presence 的时间戳
 
 # R3: 限流相关数据结构
@@ -884,6 +885,14 @@ def _flush_hist_pending():
         _restore_chan(chan, arr)
 
 
+def hide_conflict_banner():
+    """隐藏冲突横幅"""
+    global _conflict_show, _conflict_hide_timer
+    if _conflict_show[0]:
+        _conflict_show[0] = False
+        _conflict_hide_timer[0] = None
+        render()
+
 def on_message(client, userdata, msg):
     # R1: 处理 presence 消息（冲突检测）
     if msg.topic.startswith(PRESENCE_PREFIX):
@@ -896,6 +905,10 @@ def on_message(client, userdata, msg):
                 if not _conflict_show[0]:
                     print(f"[冲突] 检测到另一实例：{remote_cid}（ts={remote_ts}）")
                     _conflict_show[0] = True
+                    # 设置60秒后自动隐藏冲突横幅
+                    if _conflict_hide_timer[0]:
+                        root.after_cancel(_conflict_hide_timer[0])
+                    _conflict_hide_timer[0] = root.after(60000, hide_conflict_banner)
                     render()
         except Exception:
             pass
@@ -2364,5 +2377,9 @@ if os.environ.get("HSBOARD_DEMO_STATE") not in ("1", "bottom"):
 try:
     root.mainloop()
 finally:
+    # 清理冲突横幅定时器
+    if _conflict_hide_timer[0]:
+        root.after_cancel(_conflict_hide_timer[0])
+        _conflict_hide_timer[0] = None
     client.disconnect()
     print("[退出] 桌面留言板已关闭")
