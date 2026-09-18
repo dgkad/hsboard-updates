@@ -1,9 +1,9 @@
 {
-  "version": "1.0.11",
+  "version": "1.0.12",
   "channel": "stable",
-  "published_at": "2026-09-18T14:04:44Z",
-  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.11/board_v1.0.11.zip",
-  "sha256": "81e5e6e974c1c340bf068b8f6bf52610b3278fe402e3aab7526ce211823d84c5",
-  "changelog": "v1.0.11 - 修复：冲突检测心跳引用未定义变量致功能失效；家长消息处理线程崩溃（限流检查顺序错误）导致留言收不到",
+  "published_at": "2026-09-18T14:19:59Z",
+  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.12/board_v1.0.12.zip",
+  "sha256": "ff8be3830a0ca7c1cb64be6600919ad2290021cf056c152dd2f3f7939d3fc7c5",
+  "changelog": "v1.0.12 - 修复：自动更新只替换 exe 未更新 _internal 依赖目录，跨 Python 版本更新后无法启动（Failed to load Python DLL）；现整体替换 exe+_internal 并支持失败回滚",
   "self_url": "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
 }
