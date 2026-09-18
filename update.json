@@ -1,9 +1,9 @@
 {
-  "version": "1.0.12",
+  "version": "1.0.13",
   "channel": "stable",
-  "published_at": "2026-09-18T14:19:59Z",
-  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.12/board_v1.0.12.zip",
-  "sha256": "ff8be3830a0ca7c1cb64be6600919ad2290021cf056c152dd2f3f7939d3fc7c5",
-  "changelog": "v1.0.12 - 修复：自动更新只替换 exe 未更新 _internal 依赖目录，跨 Python 版本更新后无法启动（Failed to load Python DLL）；现整体替换 exe+_internal 并支持失败回滚",
+  "published_at": "2026-09-18T14:26:08Z",
+  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.13/board_v1.0.13.zip",
+  "sha256": "52ffa51a4747367af038c7902f1faaad82a47287f696769731e73f45265c744a",
+  "changelog": "v1.0.13 - 更新构建环境与生产存量保持一致（Python 3.14），确保 1.0.8/1.0.9 老版本可直接自动升级；含此前全部修复（冲突检测、留言线程、自更新完整替换）",
   "self_url": "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
 }
