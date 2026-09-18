@@ -41,7 +41,9 @@ jobs:
       - name: 安装 Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          # 与生产存量机器的 _internal 保持同一 Python 大版本（3.14）：
+          # 老版本自更新只替换 exe，跨 Python 版本会因 python3xx.dll 缺失无法启动
+          python-version: '3.14'
 
       - name: 装依赖
         run: |
