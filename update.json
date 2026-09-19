@@ -1,8 +1,11 @@
 {
     "version": "1.0.21",
+    "channel": "stable",
     "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.21/board_v1.0.21.zip",
+    "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.21/board_v1.0.21.zip",
     "sha256": "DC34A051817405ACBB644B99F4CEA2F1D17CE487014418719DA77017EE510CFA",
-    "changelog": "1.0.21 - onefile桥接版（支持onedir迁移）",
+    "changelog": "v1.0.21 onefile 桥接版（支持自动迁移到 onedir）",
+    "notes": "v1.0.21 onefile 桥接版：1.0.8 开机自动升到 1.0.21，再自动迁移 1.0.22 onedir（含桌面层停靠修复 + 归位日志节流）",
     "onedir_target": {
         "version": "1.0.22",
         "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.22/board_v1.0.22.zip",
