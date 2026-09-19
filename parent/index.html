@@ -74,6 +74,8 @@
     text-overflow: ellipsis; white-space: nowrap; flex: none;
   }
   #acList .empty {
+    padding: 14px; font-size: 13px; color: #999; text-align: center;
+  }
 
   /* 聊天界面 */
   #chat { flex: 1; display: flex; flex-direction: column; }
@@ -119,6 +121,15 @@
   .inputbar button:disabled { opacity: .5; cursor: not-allowed; }
   #status { cursor: pointer; }
 </style>
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?d1f9aaf83ebc115b75878b0bf92e03ac";
+  var s = document.getElementsByTagName("script")[0];
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
 </head>
 <body>
 
@@ -215,7 +226,9 @@
     return prefix + "-" + Date.now() + "-" + hex;
   }
 
-  // 演示名单；正式使用时只改 config/students.json 即可
+  // 演示名单仅占位；真实名单加载成功前（_rosterOk=false）输入与进入按钮保持禁用，
+  // 绝不静默回落演示数据（历史 bug：离线时家长可能选中"张三"把留言发给真实学号）
+  var _rosterOk = false;
   var ROSTER = [
     { id: "01", name: "张三" }, { id: "02", name: "李四" }, { id: "03", name: "王五" },
     { id: "04", name: "赵六" }, { id: "05", name: "孙七" }, { id: "06", name: "周八" },
@@ -361,11 +374,22 @@
         if (cfg && cfg.students && cfg.students.length) {
           ROSTER = cfg.students;
           CLASS_NAME = cfg.class || CLASS_NAME;
+          _rosterOk = true;                              // 真实名单已就位，允许使用
+          $("ssearch").disabled = false;
+          $("btnEnter").disabled = false;
         }
         sortRoster();
         updateTip("", ROSTER.length);
       })
-      .catch(function () { updateTip("", ROSTER.length); });
+      .catch(function () {
+        // 加载失败绝不回落到内置演示名单（否则家长可能把留言发给真实学号"张三"）
+        if (!_rosterOk) {
+          $("rosterTip").textContent = "名单加载失败：请检查网络后刷新页面重试";
+          $("rosterTip").style.color = "#e64340";
+          $("ssearch").disabled = true;
+          $("btnEnter").disabled = true;
+        }
+      });
   }
   fetch("./config/classes.json")
     .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
@@ -401,7 +425,7 @@
       if (!sid) { alert("请先在搜索框中选择孩子"); return; }
       $("who").textContent = sidName(sid) + "家长";
     } else {
-      tname = $("tname").value.trim().replace(/[+#\r\n]/g, "").slice(0, 24);   // 通配符会破坏 MQTT topic
+      tname = $("tname").value.trim().replace(/[+#\/\r\n]/g, "").slice(0, 24);   // 通配符/层级符会破坏 MQTT topic
     if (!tname) { alert("请输入您的身份，如：数学老师"); return; }
     $("tname").value = tname;
       tmode = $("tmode").value;
@@ -470,7 +494,7 @@
           var dg = JSON.parse(payload.toString());
           var dgId = dg.msgId;
           if (dgId) {
-            var el = document.querySelector('.row[data-msg-id="' + dgId + '"]');
+            var el = document.querySelector('.row[data-msg-id="' + CSS.escape(String(dgId)) + '"]');
             if (el) {
               var st = el.querySelector(".st");
               if (st && st.textContent.indexOf("紧急通知") >= 0) {
@@ -482,11 +506,22 @@
         } catch (e) {}
         return;
       }
-      // 教室端通知（notice）：ack 通道携带 type=notice 的文本提示 → 顶部横幅
+      // 教室端通知（notice）与限流拒收（reject）：ack 通道携带 → 更新对应气泡 + 顶部横幅
       if (topic.indexOf(ACK_PRE) === 0) {
         try {
           var nt = JSON.parse(payload.toString());
           if (nt && nt.type === "notice" && nt.text) { handleNotice(nt.text); return; }
+          if (nt && nt.type === "reject") {
+            if (nt.msgId) {
+              var rel = document.querySelector('.row[data-msg-id="' + CSS.escape(String(nt.msgId)) + '"]');
+              if (rel) {
+                var rst = rel.querySelector(".st");
+                if (rst) rst.textContent = "已被教室端拦下（发送过于频繁）";
+              }
+            }
+            handleNotice("消息被拦下：发送过于频繁，请稍后再发");
+            return;
+          }
         } catch (e) {}
       }
       try {
@@ -618,7 +653,7 @@
   }
 
   function markRead(msgId, readAt) {
-    var el = document.querySelector('.row[data-msg-id="' + msgId + '"]');
+    var el = document.querySelector('.row[data-msg-id="' + CSS.escape(String(msgId)) + '"]');
     if (el) {
       var st = el.querySelector(".st");
       st.textContent = readStatus(readAt);
@@ -626,43 +661,8 @@
     }
   }
 
-  function send() {
-    if (sending) return;
-    var input = $("text");
-    var text = input.value.trim();
-    if (!text) return;
-    if (!client || !client.connected) { alert("尚未连接服务器，请稍候"); return; }
-    sending = true;
-    var btn = $("btnSend");
-    btn.disabled = true;
-    var horn = (role === "teacher" && tmode === "horn");
-    var msg = {
-      msgId: newMsgId(),
-      sid: sid, text: text, ts: Date.now(),
-      type: horn ? "horn" : "normal"
-    };
-    if (role === "teacher") {
-      msg.role = "teacher";
-      msg.teacher = tname;
-      if (horn) msg.horn = true;
-    }
-    input.value = "";
-    var item = addBubble(msg, horn);
-    saveHist({ msgId: msg.msgId, text: text, ts: msg.ts, horn: horn, read: false });
-    publishHist();                                  // 历史同步到服务器（retained）——换设备不丢
-    client.publish(MSG_PRE + sid, JSON.stringify(msg), { qos: 1 }, function (err) {
-      btn.disabled = false;
-      sending = false;
-      if (err) { item.querySelector(".st").textContent = "发送失败"; return; }
-      var st = item.querySelector(".st");
-      if (st.textContent === "发送中…") {
-        st.textContent = horn
-          ? "紧急通知已发出（教室端未全屏则降级为卡片）"
-          : "已发送";
-        if (horn) sendHornAck(msg.msgId);
-      }
-    });
-  }
+  // （send() 在下方只定义一次；历史上重复定义导致后定义覆盖前定义，
+  //   老师姓名被写成布尔 true、回执发到 ack/t-True、状态停在"发送中…"，已修复）
 
   // 紧急通知回执占位：教室端确认全屏显示后发布 ACK，家长端 UI 可据此更新状态
   // 当前教室端尚未实现回执，此函数为后续接入预留，不阻塞发送流程
@@ -762,18 +762,21 @@
 
   // R2: GitHub 图标长按功能
   let pressTimer = null;
+  let longPressed = false;                          // 长按已触发时吞掉随后的 click，避免同时打开新标签页
   const githubIcon = document.getElementById('githubIcon');
-  
+
   if (githubIcon) {
     // 单击：跳转到 GitHub 仓库
     githubIcon.addEventListener('click', function(e) {
       e.preventDefault();
+      if (longPressed) { longPressed = false; return; }
       window.open('https://github.com/dgkad/hsboard-updates', '_blank');
     });
 
     // 长按：800ms 进入密码页
     githubIcon.addEventListener('mousedown', function(e) {
       pressTimer = setTimeout(function() {
+        longPressed = true;
         showPasswordPage();
       }, 800);
     });
@@ -789,6 +792,7 @@
     // 触摸事件支持
     githubIcon.addEventListener('touchstart', function(e) {
       pressTimer = setTimeout(function() {
+        longPressed = true;
         showPasswordPage();
       }, 800);
     });
@@ -838,57 +842,77 @@
     else alert('密码错误，请重试');
   }
 
-  // R2: 显示邮件页
+  // R2: 显示邮件页（浮层形式，不再 innerHTML 整体替换——那会销毁聊天界面与 MQTT 会话）
+  // EmailJS 前端仅使用 Public Key（本就可公开嵌入浏览器）；serviceId/templateId 取自 EmailJS 后台
+  // 模板 template_sqw8uvb 变量：收件人→email，姓名→name，正文→message，time 自动填当前时间
+  var EMAILJS_PUBLIC_KEY  = "Nldk3feRzOFxNQRs1";
+  var EMAILJS_SERVICE_ID  = "service_wvzszds";
+  var EMAILJS_TEMPLATE_ID = "template_sqw8uvb";
+  var _emailOverlay = null;
   function showEmailPage() {
-    const emailHtml = `
-      <div style="max-width: 400px; margin: 50px auto; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
-        <h2 style="margin-bottom: 20px; color: #333;">发送邮件</h2>
-        <div style="margin-bottom: 15px;">
-          <label style="display: block; margin-bottom: 5px; font-weight: 500;">收件人：</label>
-          <input type="email" id="emailTo" value="dgkad_vip@163.com" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+    if (_emailOverlay) return;
+    _emailOverlay = document.createElement('div');
+    _emailOverlay.style.cssText =
+      'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.45);' +
+      'z-index:999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    _emailOverlay.innerHTML = `
+      <div style="width:100%;max-width:400px;background:#fff;border-radius:12px;padding:20px;">
+        <h2 style="margin:0 0 20px;color:#333;font-size:18px;">发送邮件</h2>
+        <div style="margin-bottom:15px;">
+          <label style="display:block;margin-bottom:5px;font-weight:500;">收件人：</label>
+          <input type="email" id="emailTo" value="dgkad_vip@163.com" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box;">
         </div>
-        <div style="margin-bottom: 15px;">
-          <label style="display: block; margin-bottom: 5px; font-weight: 500;">主题：</label>
-          <input type="text" id="emailSubject" placeholder="请输入邮件主题" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <div style="margin-bottom:15px;">
+          <label style="display:block;margin-bottom:5px;font-weight:500;">姓名：</label>
+          <input type="text" id="emailName" placeholder="请输入你的姓名" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box;">
         </div>
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; margin-bottom: 5px; font-weight: 500;">内容：</label>
-          <textarea id="emailBody" rows="6" placeholder="请输入邮件内容" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+        <div style="margin-bottom:20px;">
+          <label style="display:block;margin-bottom:5px;font-weight:500;">正文：</label>
+          <textarea id="emailBody" rows="6" placeholder="请输入邮件内容" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;resize:vertical;box-sizing:border-box;"></textarea>
         </div>
-        <button onclick="sendEmail()" style="width: 100%; padding: 10px; background: #07c160; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer;">发送邮件</button>
-        <button onclick="closeEmailPage()" style="width: 100%; padding: 10px; margin-top: 10px; background: #f0f0f0; color: #333; border: none; border-radius: 4px; cursor: pointer;">关闭</button>
+        <button onclick="sendEmail()" style="width:100%;padding:10px;background:#07c160;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">发送邮件</button>
+        <button onclick="closeEmailPage()" style="width:100%;padding:10px;margin-top:10px;background:#f0f0f0;color:#333;border:none;border-radius:4px;cursor:pointer;">关闭</button>
       </div>
     `;
-    
-    document.body.innerHTML = emailHtml;
-    
-    // 添加 EmailJS SDK
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
-    script.onload = function() {
-      emailjs.init('YOUR_PUBLIC_KEY'); // 这里需要替换为实际的 EmailJS 公钥
-    };
-    document.head.appendChild(script);
-  }
+    document.body.appendChild(_emailOverlay);
 
-  // R2: 发送邮件
-  function sendEmail() {
-    const to = document.getElementById('emailTo').value;
-    const subject = document.getElementById('emailSubject').value;
-    const body = document.getElementById('emailBody').value;
-    
-    if (!subject || !body) {
-      alert('请填写完整的邮件信息');
-      return;
+    // EmailJS SDK 只加载一次（publicKey 直接传给 send()，无需 init 占位）
+    if (typeof emailjs === 'undefined') {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
+      document.head.appendChild(script);
     }
-    
-    // 这里应该调用 EmailJS 发送邮件
-    alert('邮件发送功能需要配置 EmailJS 服务');
   }
 
-  // R2: 关闭邮件页
+  // R2: 发送邮件（EmailJS 前端发送，publicKey 直接随 send 传入）
+  function sendEmail() {
+    const to      = document.getElementById('emailTo').value.trim();
+    const name    = document.getElementById('emailName').value.trim();
+    const message = document.getElementById('emailBody').value.trim();
+
+    if (!to)      { alert('请填写收件人邮箱'); return; }
+    if (!name)    { alert('请填写姓名'); return; }
+    if (!message) { alert('请填写正文'); return; }
+    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID) {
+      alert('EmailJS 尚未配置 serviceId / templateId，无法发送'); return;
+    }
+    if (typeof emailjs === 'undefined') { alert('EmailJS SDK 未加载完成，请稍后再试'); return; }
+
+    // time 自动填当前时间（模板里有 {{time}} 变量）
+    const time = new Date().toLocaleString('zh-CN', { hour12: false });
+
+    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID,
+                 { email: to, name: name, time: time, message: message }, EMAILJS_PUBLIC_KEY)
+      .then(function () { alert('邮件已发送'); closeEmailPage(); })
+      .catch(function (err) { alert('发送失败：' + (err && err.message ? err.message : err)); });
+  }
+
+  // R2: 关闭邮件页（移除浮层，聊天界面与会话原样保留）
   function closeEmailPage() {
-    location.reload();
+    if (_emailOverlay) {
+      _emailOverlay.remove();
+      _emailOverlay = null;
+    }
   }
 
   // R7: 处理教室端发送的 notice（临时覆盖常驻文案，5 秒后恢复）
@@ -905,48 +929,60 @@
     }
   }
 
-  // 修改发送函数，加入限流检查
+  // 发送（唯一实现）：老师姓名必须传字符串 tname；状态按 发送中→已发送→已读 推进；
+  // sid 写入消息体（协议必填字段）；topic 统一用 chanSid()（老师普通/紧急共用 t- 通道）
   function send() {
-    const text = $("text").value.trim();
-    if (!text || sending) return;
-    
-    // R3: 限流检查
-    const canSend = checkRateLimit(sid || 'teacher');
-    if (!canSend) {
-      const countdown = getRateLimitCountdown(sid || 'teacher');
-      alert(countdown || '发送过于频繁，请稍后再试');
+    if (sending) return;
+    var input = $("text");
+    var text = input.value.trim();
+    if (!text) return;
+    if (!client || !client.connected) { alert("尚未连接服务器，请稍候"); return; }
+
+    // R3: 限流检查（UX 层；权威限流在教室端，被拒时会收到 reject 回执）
+    var chan = chanSid();
+    if (!checkRateLimit(chan)) {
+      alert(getRateLimitCountdown(chan) || "发送过于频繁，请稍后再试");
       return;
     }
-    
-    // 原有的发送逻辑...
+
     sending = true;
-    $("btnSend").disabled = true;
-    
-    const msg = {
+    var btn = $("btnSend");
+    btn.disabled = true;
+    var horn = (role === "teacher" && tmode === "horn");
+
+    var msg = {
       msgId: newMsgId(),
+      sid: chan,
       text: text,
       ts: Date.now(),
-      role: role,
-      name: role === "teacher" ? tname : ROSTER.find(s => s.id === sid)?.name || sid,
-      device: getDeviceId() // R3: 添加 device 字段
+      type: horn ? "horn" : "normal",
+      device: getDeviceId()                        // R3: 教室端按发送方设备做身份切换限流
     };
-    
     if (role === "teacher") {
-      msg.teacher = true;
-      msg.horn = tmode === "horn";
+      msg.role = "teacher";
+      msg.teacher = tname;                         // 必须是老师姓名字符串（历史 bug 曾写成布尔 true）
+      if (horn) msg.horn = true;
     }
-    
-    client.publish(MSG_PRE + (role === "teacher" ? "t-" + tname : sid), JSON.stringify(msg), { qos: 1 }, function (err) {
-      $("btnSend").disabled = false;
+
+    var item = addBubble(msg, horn);               // 先上屏（发送中…），按回执推进状态
+    input.value = "";
+    saveHist({ msgId: msg.msgId, text: text, ts: msg.ts, horn: horn, read: false });
+    publishHist();                                 // 历史同步到服务器（retained）——换设备不丢
+    client.publish(MSG_PRE + chan, JSON.stringify(msg), { qos: 1 }, function (err) {
+      btn.disabled = false;
       sending = false;
-      if (err) { 
-        $("text").value = "";
-        return; 
+      var st = item.querySelector(".st");
+      if (err) {
+        st.textContent = "发送失败，点输入框可重发";
+        input.value = text;                        // 失败不丢内容，方便重发
+        return;
       }
-      var item = addBubble(msg, msg.horn);
-      saveHist({ msgId: msg.msgId, text: text, ts: msg.ts, horn: msg.horn, read: false });
-      publishHist();                                  // 历史同步到服务器（retained）——换设备不丢
-      $("text").value = "";
+      if (st.textContent === "发送中…") {
+        st.textContent = horn
+          ? "紧急通知已发出（教室端未全屏则降级为卡片）"
+          : "已发送";
+        if (horn) sendHornAck(msg.msgId);
+      }
     });
   }
 
