@@ -1,14 +1,15 @@
 {
     "version": "1.0.22",
     "channel": "stable",
-    "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.22/board_v1.0.22.zip",
-    "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.22/board_v1.0.22.zip",
-    "sha256": "18B830B20BE20CD571CFA4ABBC20860AAEFDE25629D3F103D0DC00C5B7FC0090",
-    "changelog": "v1.0.22 onedir：桌面层停靠打架修复（重采样后立即重新停靠，不再闪跳）+ 归位日志节流",
-    "notes": "v1.0.22 onedir 终点版：修复重采样/改位置/改缩放后窗口脱离桌面层停靠、反复归位失败的闪跳问题。1.0.21 桥接版开机自动迁移到此版。",
+    "published_at": "2026-09-19T06:45:00Z",
+    "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.21/board_v1.0.21.zip",
+    "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.21/board_v1.0.21.zip",
+    "sha256": "DC34A051817405ACBB644B99F4CEA2F1D17CE487014418719DA77017EE510CFA",
+    "changelog": "顶层锚定 v1.0.21 onefile 桥接包：1.0.8 老机器先升桥接版（单文件可直接替换），再经 onedir_target 迁到 v1.0.23",
+    "notes": "v1.0.23 缺陷修复版：家长端 send() 重复定义（老师姓名/回执/发送状态）、跨零点姓名丢失、client_id 机器指纹化（持久会话恢复）、presence 改非 retained、限流拒绝回执、管理密码本机化等。1.0.8→桥接→1.0.23 两步自动完成。",
     "onedir_target": {
-        "version": "1.0.22",
-        "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.22/board_v1.0.22.zip",
-        "sha256": "18B830B20BE20CD571CFA4ABBC20860AAEFDE25629D3F103D0DC00C5B7FC0090"
+        "version": "1.0.23",
+        "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.23/board_v1.0.23.zip",
+        "sha256": "7A873551BBC9F5BF77AB7EE43D982E57BAA0BB575359425D84119CB12D09C90B"
     }
 }
