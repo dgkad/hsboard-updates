@@ -1,0 +1,323 @@
+{
+  "class": "高一(8)班",
+  "students": [
+    {
+      "id": "2026090255",
+      "name": "李明峰",
+      "p": "limingfeng",
+      "s": "lmf"
+    },
+    {
+      "id": "2026090568",
+      "name": "项锡妍",
+      "p": "xiangxiyan",
+      "s": "xxy"
+    },
+    {
+      "id": "2026090620",
+      "name": "杨诺楚",
+      "p": "yangnuochu",
+      "s": "ync"
+    },
+    {
+      "id": "2026090157",
+      "name": "何语杰",
+      "p": "heyujie",
+      "s": "hyj"
+    },
+    {
+      "id": "2026090336",
+      "name": "刘沁园",
+      "p": "liuqinyuan",
+      "s": "lqy"
+    },
+    {
+      "id": "2026090041",
+      "name": "陈舒琪",
+      "p": "chenshuqi",
+      "s": "csq"
+    },
+    {
+      "id": "2026090437",
+      "name": "任浩龙",
+      "p": "renhaolong",
+      "s": "rhl"
+    },
+    {
+      "id": "2026090098",
+      "name": "董袁婉宁",
+      "p": "dongyuanwanning",
+      "s": "dywn"
+    },
+    {
+      "id": "2026090246",
+      "name": "李建彰",
+      "p": "lijianzhang",
+      "s": "ljz"
+    },
+    {
+      "id": "2026090710",
+      "name": "郑嘉楠",
+      "p": "zhengjianan",
+      "s": "zjn"
+    },
+    {
+      "id": "2026090747",
+      "name": "周宇淏",
+      "p": "zhouyuhao",
+      "s": "zyh"
+    },
+    {
+      "id": "2026090032",
+      "name": "陈敬云",
+      "p": "chenjingyun",
+      "s": "cjy"
+    },
+    {
+      "id": "2026090343",
+      "name": "刘幸云",
+      "p": "liuxingyun",
+      "s": "lxy"
+    },
+    {
+      "id": "2026090283",
+      "name": "李志楷",
+      "p": "lizhikai",
+      "s": "lzk"
+    },
+    {
+      "id": "2026090195",
+      "name": "黄晓妍",
+      "p": "huangxiaoyan",
+      "s": "hxy"
+    },
+    {
+      "id": "2026090689",
+      "name": "张宇泽",
+      "p": "zhangyuze",
+      "s": "zyz"
+    },
+    {
+      "id": "2026090081",
+      "name": "邓方威",
+      "p": "dengfangwei",
+      "s": "dfw"
+    },
+    {
+      "id": "2026090083",
+      "name": "邓嘉佑",
+      "p": "dengjiayou",
+      "s": "djy"
+    },
+    {
+      "id": "2026090272",
+      "name": "李以诺",
+      "p": "liyinuo",
+      "s": "lyn"
+    },
+    {
+      "id": "2026090502",
+      "name": "王家缘",
+      "p": "wangjiayuan",
+      "s": "wjy"
+    },
+    {
+      "id": "2026090606",
+      "name": "许欣怡",
+      "p": "xuxinyi",
+      "s": "xxy"
+    },
+    {
+      "id": "2026090263",
+      "name": "李诗樱",
+      "p": "lishiying",
+      "s": "lsy"
+    },
+    {
+      "id": "2026090542",
+      "name": "吴漫琪",
+      "p": "wumanqi",
+      "s": "wmq"
+    },
+    {
+      "id": "2026090116",
+      "name": "符浩强",
+      "p": "fuhaoqiang",
+      "s": "fhq"
+    },
+    {
+      "id": "2026090218",
+      "name": "江紫涵",
+      "p": "jiangzihan",
+      "s": "jzh"
+    },
+    {
+      "id": "2026090734",
+      "name": "钟雅丽",
+      "p": "zhongyali",
+      "s": "zyl"
+    },
+    {
+      "id": "2026090634",
+      "name": "杨子洋",
+      "p": "yangziyang",
+      "s": "yzy"
+    },
+    {
+      "id": "2026090630",
+      "name": "杨致远",
+      "p": "yangzhiyuan",
+      "s": "yzy"
+    },
+    {
+      "id": "2026090670",
+      "name": "张厚坤",
+      "p": "zhanghoukun",
+      "s": "zhk"
+    },
+    {
+      "id": "2026090365",
+      "name": "隆伊涵",
+      "p": "longyihan",
+      "s": "lyh"
+    },
+    {
+      "id": "2026090115",
+      "name": "伏雅萍",
+      "p": "fuyaping",
+      "s": "fyp"
+    },
+    {
+      "id": "2026090362",
+      "name": "柳柏尧",
+      "p": "liubaiyao",
+      "s": "lby"
+    },
+    {
+      "id": "2026090665",
+      "name": "张辰希",
+      "p": "zhangchenxi",
+      "s": "zcx"
+    },
+    {
+      "id": "2026090092",
+      "name": "丁康沛沛",
+      "p": "dingkangpeipei",
+      "s": "dkpp"
+    },
+    {
+      "id": "2026090560",
+      "name": "伍启鸿",
+      "p": "wuqihong",
+      "s": "wqh"
+    },
+    {
+      "id": "2026090669",
+      "name": "张浩然",
+      "p": "zhanghaoran",
+      "s": "zhr"
+    },
+    {
+      "id": "2026090005",
+      "name": "蔡佳沂",
+      "p": "caijiayi",
+      "s": "cjy"
+    },
+    {
+      "id": "2026090621",
+      "name": "杨清涵",
+      "p": "yangqinghan",
+      "s": "yqh"
+    },
+    {
+      "id": "2026090608",
+      "name": "薛宏阳",
+      "p": "xuehongyang",
+      "s": "xhy"
+    },
+    {
+      "id": "2026090398",
+      "name": "孟思彤",
+      "p": "mengsitong",
+      "s": "mst"
+    },
+    {
+      "id": "2026090536",
+      "name": "巫腾轩",
+      "p": "wutengxuan",
+      "s": "wtx"
+    },
+    {
+      "id": "2026090407",
+      "name": "欧阳静怡",
+      "p": "ouyangjingyi",
+      "s": "oyjy"
+    },
+    {
+      "id": "2026090519",
+      "name": "王义仁",
+      "p": "wangyiren",
+      "s": "wyr"
+    },
+    {
+      "id": "2026090125",
+      "name": "高伟淇",
+      "p": "gaoweiqi",
+      "s": "gwq"
+    },
+    {
+      "id": "2026090137",
+      "name": "郭涵悦",
+      "p": "guohanyue",
+      "s": "ghy"
+    },
+    {
+      "id": "2026090194",
+      "name": "黄庭岳",
+      "p": "huangtingyue",
+      "s": "hty"
+    },
+    {
+      "id": "2026090225",
+      "name": "柯奇瑞",
+      "p": "keqirui",
+      "s": "kqr"
+    },
+    {
+      "id": "2026090530",
+      "name": "魏铠申",
+      "p": "weikaishen",
+      "s": "wks"
+    },
+    {
+      "id": "2026090187",
+      "name": "黄吉祥",
+      "p": "huangjixiang",
+      "s": "hjx"
+    },
+    {
+      "id": "2026090050",
+      "name": "陈翔宇",
+      "p": "chenxiangyu",
+      "s": "cxy"
+    },
+    {
+      "id": "2026090379",
+      "name": "罗玥茹",
+      "p": "luoyueru",
+      "s": "lyr"
+    },
+    {
+      "id": "2026090786",
+      "name": "马张琳",
+      "p": "mazhanglin",
+      "s": "mzl"
+    },
+    {
+      "id": "2026090788",
+      "name": "郑春风",
+      "p": "zhengchunfeng",
+      "s": "zcf"
+    }
+  ]
+}
