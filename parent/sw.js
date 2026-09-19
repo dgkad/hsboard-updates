@@ -1,5 +1,5 @@
 /* 家长端 Service Worker：壳资源缓存；名单/首页网络优先（改名单能及时生效） */
-var CACHE = "hs-board-v5";
+var CACHE = "hs-board-v7";
 var SHELL = [
   "./", "./index.html", "./mqtt.min.js", "./manifest.json", "./guide.html",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png"
