@@ -1,11 +1,11 @@
 {
     "version": "1.0.21",
     "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.21/board_v1.0.21.zip",
-    "sha256": "471A455CCCBB2CF0F2C0744B6EEE3E99551A93F7A32511F9E7BA8055E5C555EB",
+    "sha256": "DC34A051817405ACBB644B99F4CEA2F1D17CE487014418719DA77017EE510CFA",
     "changelog": "1.0.21 - onefile桥接版（支持onedir迁移）",
     "onedir_target": {
         "version": "1.0.22",
         "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.22/board_v1.0.22.zip",
-        "sha256": "4E263E1246545D34187C0F86A151C0D958CB6A36FD715B8B3758FFBCEDD9666F"
+        "sha256": "C6794A6927507170CB032FE025E53C5CDAD1D5B5ACC70272144A13318B607264"
     }
 }
