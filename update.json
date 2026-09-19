@@ -1,11 +1,11 @@
 {
-    "version": "1.0.21",
+    "version": "1.0.22",
     "channel": "stable",
-    "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.21/board_v1.0.21.zip",
-    "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.21/board_v1.0.21.zip",
-    "sha256": "DC34A051817405ACBB644B99F4CEA2F1D17CE487014418719DA77017EE510CFA",
-    "changelog": "v1.0.21 onefile 桥接版（支持自动迁移到 onedir）",
-    "notes": "v1.0.21 onefile 桥接版：1.0.8 开机自动升到 1.0.21，再自动迁移 1.0.22 onedir（含桌面层停靠修复 + 归位日志节流）",
+    "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.22/board_v1.0.22.zip",
+    "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.22/board_v1.0.22.zip",
+    "sha256": "18B830B20BE20CD571CFA4ABBC20860AAEFDE25629D3F103D0DC00C5B7FC0090",
+    "changelog": "v1.0.22 onedir：桌面层停靠打架修复（重采样后立即重新停靠，不再闪跳）+ 归位日志节流",
+    "notes": "v1.0.22 onedir 终点版：修复重采样/改位置/改缩放后窗口脱离桌面层停靠、反复归位失败的闪跳问题。1.0.21 桥接版开机自动迁移到此版。",
     "onedir_target": {
         "version": "1.0.22",
         "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.22/board_v1.0.22.zip",
