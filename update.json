@@ -6,10 +6,10 @@
     "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.21/board_v1.0.21.zip",
     "sha256": "DC34A051817405ACBB644B99F4CEA2F1D17CE487014418719DA77017EE510CFA",
     "changelog": "顶层锚定 v1.0.21 onefile 桥接包：1.0.8 老机器先升桥接版（单文件可直接替换），再经 onedir_target 迁到 v1.0.23",
-    "notes": "v1.0.23 缺陷修复版：家长端 send() 重复定义（老师姓名/回执/发送状态）、跨零点姓名丢失、client_id 机器指纹化（持久会话恢复）、presence 改非 retained、限流拒绝回执、管理密码本机化等。1.0.8→桥接→1.0.23 两步自动完成。",
+    "notes": "v1.0.24 班级热切换版：改 board_settings.json 的 class 立即生效无需重启（含 v1.0.23 全部修复）",
     "onedir_target": {
-        "version": "1.0.23",
-        "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.23/board_v1.0.23.zip",
-        "sha256": "7A873551BBC9F5BF77AB7EE43D982E57BAA0BB575359425D84119CB12D09C90B"
+        "version": "1.0.24",
+        "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.24/board_v1.0.24.zip",
+        "sha256": "9059B7447DF08A48E6988EA43B70762D53BE419FBC5F56FC32FE98D0ED779FB8"
     }
 }
