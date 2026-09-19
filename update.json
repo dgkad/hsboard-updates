@@ -1,11 +1,11 @@
 {
-  "version": "1.0.16",
-  "channel": "stable",
-  "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.16/board_v1.0.16.zip",
-  "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.16/board_v1.0.16.zip",
-  "sha256": "22ea28579b3fcf322e7f8053e06f001e2357b7a3626d2a615bb4fdb938a6b3cd",
-  "changelog": "v1.0.16 - 修复同班两台互相挤掉线（ClientID 唯一化）；冲突检测横幅接收侧修复",
-  "notes": "v1.0.16 - 修复同班两台互相挤掉线（ClientID 唯一化）；冲突检测横幅接收侧修复",
-  "published_at": "2026-09-18T17:24:27Z",
-  "self_url": "https://raw.githubusercontent.com/dgkad/hsboard-updates/main/update.json"
+    "version": "1.0.21",
+    "release_zip": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.21/board_v1.0.21.zip",
+    "sha256": "471A455CCCBB2CF0F2C0744B6EEE3E99551A93F7A32511F9E7BA8055E5C555EB",
+    "changelog": "1.0.21 - onefile桥接版（支持onedir迁移）",
+    "onedir_target": {
+        "version": "1.0.22",
+        "url": "https://github.com/dgkad/hsboard-updates/releases/download/v1.0.22/board_v1.0.22.zip",
+        "sha256": "4E263E1246545D34187C0F86A151C0D958CB6A36FD715B8B3758FFBCEDD9666F"
+    }
 }
